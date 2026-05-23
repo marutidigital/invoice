@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { TEMPLATES } from '@/lib/templates'
 import { CURRENCIES } from '@/lib/currencies'
-import { Plus, Trash2, Download, Save, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { Plus, Trash2, Download, Save, ArrowLeft, Eye, EyeOff, Settings2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Profile, Client } from '@/types'
 import LogoUpload from '@/components/ui/LogoUpload'
+import InvoiceCustomizer, { type InvoiceCustomization, DEFAULT_CUSTOMIZATION } from '@/components/invoice/InvoiceCustomizer'
 
 interface LineItem {
   id: string
@@ -40,6 +41,8 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   const [showPreview, setShowPreview] = useState(false)
   const [invoiceId, setInvoiceId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string>('')
+  const [showCustomizer, setShowCustomizer] = useState(false)
+  const [customization, setCustomization] = useState<InvoiceCustomization>(DEFAULT_CUSTOMIZATION)
 
   const [from, setFrom] = useState({ name: '', email: '', phone: '', address: '', logo_url: '' })
   const [to, setTo] = useState({ client_id: '', name: '', company: '', email: '', phone: '', address: '' })
@@ -221,6 +224,12 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
             {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             Preview
           </button>
+          <button
+            onClick={() => setShowCustomizer(true)}
+            className="flex items-center gap-1.5 text-sm text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-medium transition-colors"
+          >
+            <Settings2 className="w-4 h-4" /> Advanced
+          </button>
           <button onClick={handleSaveDraft} disabled={saving} className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors">
             <Save className="w-4 h-4" />
             {saving ? 'Saving…' : 'Save draft'}
@@ -390,10 +399,19 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Live preview · {template.name}</p>
           </div>
           <div className="p-6">
-            <InvoicePreview from={from} to={to} details={details} items={items} subtotal={subtotal} taxTotal={taxTotal} discountAmount={discountAmount} grandTotal={grandTotal} notes={notes} paymentInfo={paymentInfo} fmt={fmt} templateId={params.templateId} />
+            <InvoicePreview from={from} to={to} details={details} items={items} subtotal={subtotal} taxTotal={taxTotal} discountAmount={discountAmount} grandTotal={grandTotal} notes={notes} paymentInfo={paymentInfo} fmt={fmt} templateId={params.templateId} customization={customization} />
           </div>
         </div>
       </div>
+
+      {/* Advanced Customizer Drawer */}
+      <InvoiceCustomizer
+        open={showCustomizer}
+        onClose={() => setShowCustomizer(false)}
+        value={customization}
+        onChange={setCustomization}
+        userId={userId}
+      />
     </div>
   )
 }
@@ -408,6 +426,179 @@ type PreviewProps = {
   notes: string; paymentInfo: string
   fmt: (n: number) => string
   templateId: string
+  customization: import('@/components/invoice/InvoiceCustomizer').InvoiceCustomization
+}
+
+function InvoicePreview({ from, to, details, items, subtotal, taxTotal, discountAmount, grandTotal, notes, paymentInfo, fmt, templateId, customization }: PreviewProps) {
+  const accents: Record<string, string> = {
+    modern: '#2563eb', slate: '#1e293b', bold: '#1d4ed8', creative: '#4f46e5',
+    studio: '#0f172a', consulting: '#374151', agency: '#0284c7', retail: '#059669',
+    tech: '#18181b', professional: '#475569', clean: '#2563eb', classic: '#78350f',
+    soft: '#475569', compact: '#2563eb', elegant: '#64748b', 'stripe-style': '#635bff',
+    simple: '#374151', freelancer: '#c2410c', 'minimal-pro': '#1e293b',
+  }
+  // customization.accentColor overrides template default
+  const accent = customization.accentColor !== '#2563eb'
+    ? customization.accentColor
+    : (accents[templateId] ?? '#2563eb')
+
+  const font = `${customization.fontFamily}, sans-serif`
+  const bg = customization.backgroundColor
+  const textColor = customization.textColor
+
+  const logoEl = from.logo_url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={from.logo_url} alt="Logo" className="h-10 max-w-[130px] object-contain" />
+  ) : null
+
+  return (
+    <div
+      className="rounded-lg shadow-md overflow-hidden text-xs relative"
+      style={{ fontFamily: font, backgroundColor: bg, color: textColor }}
+    >
+      {/* Watermark */}
+      {customization.watermark && (
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 rotate-[-25deg] select-none"
+        >
+          <span
+            className="text-4xl font-black tracking-widest opacity-20"
+            style={{ color: customization.watermarkColor, fontSize: '3rem' }}
+          >
+            {customization.watermark}
+          </span>
+        </div>
+      )}
+
+      {/* Top border */}
+      {customization.showTopBorder && (
+        <div style={{ height: `${customization.borderWidth}px`, backgroundColor: accent }} />
+      )}
+
+      {/* Header */}
+      <div className="px-6 pt-5 pb-4" style={{ borderBottom: `1px solid ${accent}20` }}>
+        <div className={`flex items-start ${
+          customization.logoPosition === 'center' ? 'flex-col items-center text-center gap-2' :
+          customization.logoPosition === 'right' ? 'flex-row-reverse' : 'flex-row'
+        } justify-between`}>
+          <div className={customization.logoPosition === 'center' ? 'flex flex-col items-center' : ''}>
+            {logoEl}
+            <p className="text-lg font-bold mt-1" style={{ color: accent }}>{from.name || 'Your Business'}</p>
+            {from.email && <p className="text-slate-500 mt-0.5">{from.email}</p>}
+            {from.phone && <p className="text-slate-500">{from.phone}</p>}
+            {from.address && <p className="text-slate-500">{from.address}</p>}
+          </div>
+          <div className={customization.logoPosition === 'center' ? 'text-center' : 'text-right'}>
+            <p className="text-2xl font-black" style={{ color: textColor }}>INVOICE</p>
+            <p className="font-bold mt-0.5" style={{ color: accent }}>{details.invoice_number}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bill to + dates */}
+      <div className="px-6 py-4 grid grid-cols-2 gap-4" style={{ backgroundColor: customization.tableHeaderBg }}>
+        <div>
+          <p className="font-bold uppercase tracking-wide text-[9px] mb-1" style={{ color: accent }}>Bill to</p>
+          <p className="font-bold" style={{ color: customization.headingColor }}>{to.name || '—'}</p>
+          {to.company && <p>{to.company}</p>}
+          {to.email && <p className="opacity-70">{to.email}</p>}
+          {to.address && <p className="opacity-70">{to.address}</p>}
+        </div>
+        <div className="text-right">
+          <p className="font-bold uppercase tracking-wide text-[9px] mb-1" style={{ color: accent }}>Details</p>
+          <p>Issued: <span className="font-medium">{details.issue_date}</span></p>
+          {details.due_date && <p>Due: <span className="font-medium">{details.due_date}</span></p>}
+          {details.po_number && <p className="opacity-70">PO: {details.po_number}</p>}
+        </div>
+      </div>
+
+      {/* Line items */}
+      <div className="px-6 py-4">
+        <table className="w-full">
+          <thead>
+            <tr style={{
+              backgroundColor: customization.tableHeaderBg,
+              borderBottom: customization.tableStyle !== 'minimal' ? `1px solid ${accent}30` : 'none'
+            }}>
+              <th className="text-left pb-2 font-bold text-[9px] uppercase tracking-wide opacity-60">Description</th>
+              <th className="text-right pb-2 font-bold text-[9px] uppercase tracking-wide opacity-60">Qty</th>
+              <th className="text-right pb-2 font-bold text-[9px] uppercase tracking-wide opacity-60">Price</th>
+              <th className="text-right pb-2 font-bold text-[9px] uppercase tracking-wide opacity-60">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.filter((i) => i.description || i.unit_price > 0).map((item, idx) => (
+              <tr
+                key={item.id}
+                style={{
+                  backgroundColor: customization.tableStyle === 'striped' && idx % 2 === 1
+                    ? customization.tableStripeBg : 'transparent',
+                  borderBottom: customization.tableStyle === 'clean' || customization.tableStyle === 'bordered'
+                    ? `1px solid ${accent}15` : 'none',
+                  border: customization.tableStyle === 'bordered' ? `1px solid ${accent}15` : undefined,
+                }}
+              >
+                <td className="py-1.5">{item.description || '—'}</td>
+                <td className="py-1.5 text-right opacity-80">{item.quantity}</td>
+                <td className="py-1.5 text-right opacity-80">{fmt(item.unit_price)}</td>
+                <td className="py-1.5 text-right font-medium">{fmt(item.quantity * item.unit_price)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Totals */}
+        <div className="mt-4 ml-auto w-44 space-y-1">
+          <div className="flex justify-between opacity-80"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+          {taxTotal > 0 && <div className="flex justify-between opacity-80"><span>Tax</span><span>{fmt(taxTotal)}</span></div>}
+          {discountAmount > 0 && <div className="flex justify-between opacity-80"><span>Discount</span><span>-{fmt(discountAmount)}</span></div>}
+          <div className="flex justify-between font-bold border-t pt-1.5" style={{ borderColor: `${accent}40`, color: accent }}>
+            <span>Total</span><span>{fmt(grandTotal)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Notes */}
+      {(notes || paymentInfo) && (
+        <div className="px-6 pb-5 grid grid-cols-2 gap-4 border-t pt-4" style={{ borderColor: `${accent}15` }}>
+          {notes && <div><p className="font-bold text-[9px] uppercase tracking-wide opacity-50 mb-1">Notes</p><p className="opacity-80 leading-relaxed">{notes}</p></div>}
+          {paymentInfo && <div><p className="font-bold text-[9px] uppercase tracking-wide opacity-50 mb-1">Payment</p><p className="opacity-80 whitespace-pre-line leading-relaxed">{paymentInfo}</p></div>}
+        </div>
+      )}
+
+      {/* Signature line */}
+      {customization.showSignatureLine && (
+        <div className="px-6 pb-5">
+          <div className="flex justify-end">
+            <div className="text-center">
+              <div className="w-32 border-t mt-8 mb-1" style={{ borderColor: textColor + '40' }} />
+              <p className="text-[9px] opacity-50">Authorised Signature</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      {(customization.footerText || customization.footerImageUrl) && (
+        <div className="px-6 py-3 text-center space-y-2" style={{ backgroundColor: customization.footerBg, borderTop: `1px solid ${accent}20` }}>
+          {customization.footerImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={customization.footerImageUrl} alt="footer" className="h-8 mx-auto object-contain" />
+          )}
+          {customization.footerText && (
+            <p className="text-[10px] opacity-70 leading-relaxed">{customization.footerText}</p>
+          )}
+        </div>
+      )}
+
+      {/* Default footer */}
+      {!customization.footerText && !customization.footerImageUrl && (
+        <div className="px-6 py-3 text-center text-[9px] opacity-40" style={{ borderTop: `1px solid ${accent}15` }}>
+          Generated with ProInvoice · proinvoice.shop
+        </div>
+      )}
+    </div>
+  )
 }
 
 function InvoicePreview({ from, to, details, items, subtotal, taxTotal, discountAmount, grandTotal, notes, paymentInfo, fmt, templateId }: PreviewProps) {
