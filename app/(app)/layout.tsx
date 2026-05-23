@@ -14,22 +14,15 @@ export default async function AppLayout({
 
   if (!user) redirect('/login')
 
-  // Check if profile is complete (onboarding done)
+  // Check if onboarding is needed
+  // Only redirect to onboarding if business_name is empty/missing
   const { data: profile } = await supabase
     .from('profiles')
     .select('business_name')
     .eq('id', user.id)
     .single()
 
-  // Redirect to onboarding if profile has only the auto-created minimal row
-  // (business_name will be set to email prefix initially, but country is required)
-  const { data: fullProfile } = await supabase
-    .from('profiles')
-    .select('country')
-    .eq('id', user.id)
-    .single()
-
-  const needsOnboarding = !profile || !fullProfile?.country
+  const needsOnboarding = !profile?.business_name || profile.business_name.trim() === ''
 
   if (needsOnboarding) redirect('/onboarding')
 
