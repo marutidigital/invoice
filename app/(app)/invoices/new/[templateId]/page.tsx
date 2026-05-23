@@ -9,6 +9,7 @@ import { CURRENCIES } from '@/lib/currencies'
 import { Plus, Trash2, Download, Save, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Profile, Client } from '@/types'
+import LogoUpload from '@/components/ui/LogoUpload'
 
 interface LineItem {
   id: string
@@ -38,6 +39,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [invoiceId, setInvoiceId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string>('')
 
   const [from, setFrom] = useState({ name: '', email: '', phone: '', address: '', logo_url: '' })
   const [to, setTo] = useState({ client_id: '', name: '', company: '', email: '', phone: '', address: '' })
@@ -58,6 +60,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      setUserId(user.id)
 
       const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (p) {
@@ -253,6 +256,15 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
                 <label className={lc}>Address</label>
                 <input className={ic} value={from.address} onChange={(e) => setFrom({ ...from, address: e.target.value })} placeholder="123 Main St, City, Country" />
               </div>
+              <div className="col-span-2">
+                {userId && (
+                  <LogoUpload
+                    currentUrl={from.logo_url}
+                    userId={userId}
+                    onUpload={(url) => setFrom({ ...from, logo_url: url })}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
@@ -388,7 +400,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
 
 // LIVE PREVIEW COMPONENT
 type PreviewProps = {
-  from: { name: string; email: string; phone: string; address: string }
+  from: { name: string; email: string; phone: string; address: string; logo_url: string }
   to: { name: string; company: string; email: string; address: string }
   details: { invoice_number: string; issue_date: string; due_date: string; po_number: string }
   items: LineItem[]
@@ -413,6 +425,10 @@ function InvoicePreview({ from, to, details, items, subtotal, taxTotal, discount
       <div className="px-6 pt-6 pb-4" style={{ borderBottom: `3px solid ${accent}` }}>
         <div className="flex justify-between items-start">
           <div>
+            {from.logo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={from.logo_url} alt="Logo" className="h-10 max-w-[120px] object-contain mb-2" />
+            )}
             <p className="text-lg font-bold" style={{ color: accent }}>{from.name || 'Your Business'}</p>
             {from.email && <p className="text-slate-500 mt-0.5">{from.email}</p>}
             {from.phone && <p className="text-slate-500">{from.phone}</p>}
