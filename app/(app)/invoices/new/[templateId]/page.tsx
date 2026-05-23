@@ -1,14 +1,571 @@
-// Invoice form placeholder — full implementation in Week 2
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { TEMPLATES } from '@/lib/templates'
+import { CURRENCIES } from '@/lib/currencies'
+import { Plus, Trash2, Download, Send, Save, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import toast from 'react-hot-toast'
+import type { Profile, Client } from '@/types'
+
+interface LineItem {
+  id: string
+  description: string
+  quantity: number
+  unit_price: number
+  tax_rate: number
+  total: number
+}
+
+const newItem = (): LineItem => ({
+  id: crypto.randomUUID(),
+  description: '',
+  quantity: 1,
+  unit_price: 0,
+  tax_rate: 0,
+  total: 0,
+})
+
 export default function InvoiceFormPage({
   params,
 }: {
   params: { templateId: string }
 }) {
+  const router = useRouter()
+  const supabase = createClient()
+  const template = TEMPLATES.find((t) => t.id === params.templateId) ?? TEMPLATES[0]
+
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [clients, setClients] = useState<Client[]>([])
+  const [saving, setSaving] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [invoiceId, setInvoiceId] = useState<string | null>(null)
+
+  // Form state
+  const [from, setFrom] = useState({
+    name: '', email: '', phone: '', address: '', logo_url: '',
+  })
+  const [to, setTo] = useState({
+    client_id: '', name: '', company: '', email: '', phone: '', address: '',
+  })
+  const [details, setDetails] = useState({
+    invoice_number: 'INV-001',
+    issue_date: new Date().toISOString().split('T')[0],
+    due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    currency: 'USD',
+    po_number: '',
+  })
+  const [items, setItems] = useState<LineItem[]>([newItem()])
+  const [discount, setDiscount] = useState({ type: 'flat' as 'flat' | 'percent', value: 0 })
+  const [notes, setNotes] = useState('')
+  const [paymentInfo, setPaymentInfo] = useState('')
+
+  // Load profile + clients + next invoice number
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      if (p) {
+        setProfile(p)
+        setFrom({ name: p.business_name, email: p.email, phone: p.phone ?? '', address: [p.address, p.city, p.state, p.postcode, p.country].filter(Boolean).join(', '), logo_url: p.logo_url ?? '' })
+        setDetails((d) => ({ ...d, currency: p.currency ?? 'USD', invoice_number: `${p.invoice_prefix ?? 'INV'}-${String((p.invoice_counter ?? 0) + 1).padStart(3, '0')}` }))
+        setNotes(p.default_notes ?? '')
+        setPaymentInfo(p.payment_info ?? '')
+      }
+
+      const { data: c } = await supabase.from('clients').select('*').eq('user_id', user.id).order('name')
+      setClients(c ?? [])
+    }
+    load()
+  }, [])
+
+  // Select client → autofill
+  const selectClient = (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId)
+    if (!client) { setTo({ client_id: '', name: '', company: '', email: '', phone: '', address: '' }); return }
+    setTo({ client_id: client.id, name: client.name, company: client.company ?? '', email: client.email ?? '', phone: client.phone ?? '', address: client.address ?? '' })
+  }
+
+  // Recalculate item total
+  const updateItem = (id: string, field: keyof LineItem, value: string | number) => {
+    setItems((prev) => prev.map((item) => {
+      if (item.id !== id) return item
+      const updated = { ...item, [field]: value }
+      updated.total = updated.quantity * updated.unit_price * (1 + updated.tax_rate / 100)
+      return updated
+    }))
+  }
+
+  // Totals
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
+  const taxTotal = items.reduce((s, i) => s + i.quantity * i.unit_price * (i.tax_rate / 100), 0)
+  const discountAmount = discount.type === 'flat' ? discount.value : (subtotal * discount.value) / 100
+  const grandTotal = subtotal + taxTotal - discountAmount
+
+  const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: details.currency }).format(n)
+
+  // Save invoice
+  const save = useCallback(async (status: 'draft' | 'sent' = 'draft') => {
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSaving(false); return null }
+
+    const payload = {
+      user_id: user.id,
+      client_id: to.client_id || null,
+      invoice_number: details.invoice_number,
+      status,
+      issue_date: details.issue_date,
+      due_date: details.due_date || null,
+      currency: details.currency,
+      po_number: details.po_number || null,
+      from_name: from.name, from_email: from.email, from_phone: from.phone, from_address: from.address, from_logo_url: from.logo_url || null,
+      to_name: to.name, to_email: to.email, to_phone: to.phone, to_company: to.company, to_address: to.address,
+      subtotal, tax_amount: taxTotal, discount_amount: discountAmount, total: grandTotal,
+      notes: notes || null, payment_info: paymentInfo || null,
+      template_id: params.templateId,
+    }
+
+    let id = invoiceId
+    if (id) {
+      await supabase.from('invoices').update(payload).eq('id', id)
+    } else {
+      const { data } = await supabase.from('invoices').insert(payload).select('id').single()
+      id = data?.id ?? null
+      if (id) setInvoiceId(id)
+    }
+
+    if (id) {
+      // Save line items
+      await supabase.from('invoice_items').delete().eq('invoice_id', id)
+      await supabase.from('invoice_items').insert(items.map((item, i) => ({
+        invoice_id: id,
+        sort_order: i,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        tax_rate: item.tax_rate,
+        total: item.total,
+      })))
+
+      // Increment invoice counter on profile
+      if (!invoiceId && user) {
+        await supabase.from('profiles').update({ invoice_counter: (profile?.invoice_counter ?? 0) + 1 }).eq('id', user.id)
+      }
+    }
+
+    setSaving(false)
+    return id
+  }, [from, to, details, items, discount, notes, paymentInfo, subtotal, taxTotal, discountAmount, grandTotal, invoiceId, profile, params.templateId])
+
+  const handleSaveDraft = async () => {
+    const id = await save('draft')
+    if (id) toast.success('Draft saved!')
+  }
+
+  const handleDownload = async () => {
+    const id = await save('draft')
+    if (id) {
+      toast.success('Invoice saved! PDF download coming soon.')
+      router.push(`/invoices/${id}`)
+    }
+  }
+
+  const inputCls = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all'
+  const labelCls = 'block text-xs font-medium text-slate-500 mb-1'
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-slate-900 mb-2">New Invoice</h1>
-      <p className="text-slate-500">Template: <span className="font-medium text-blue-600">{params.templateId}</span></p>
-      <p className="text-slate-400 text-sm mt-4">Invoice form — coming in Week 2 build.</p>
+    <div className="min-h-screen bg-slate-50">
+      {/* Top bar */}
+      <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-6 h-14 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-700 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <span className="font-semibold text-slate-900 text-sm">New Invoice</span>
+            <span className="text-slate-400 text-xs ml-2">· {template.name} template</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            className="lg:hidden flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50"
+          >
+            {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            Preview
+          </button>
+          <button onClick={handleSaveDraft} disabled={saving} className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors">
+            <Save className="w-4 h-4" />
+            {saving ? 'Saving…' : 'Save draft'}
+          </button>
+          <button onClick={handleDownload} disabled={saving} className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-medium transition-all disabled:opacity-50">
+            <Download className="w-4 h-4" />
+            Save & view
+          </button>
+        </div>
+      </div>
+
+      <div className="flex h-[calc(100vh-56px)]">
+        {/* ── FORM ── */}
+        <div className={`flex-1 overflow-y-auto p-6 space-y-5 ${showPreview ? 'hidden lg:block' : ''}`}>
+
+          {/* Section A — From */}
+          <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">From (your business)</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className={labelCls}>Business name</label>
+                <input className={inputCls} value={from.name} onChange={(e) => setFrom({ ...from, name: e.target.value })} placeholder="Acme Ltd." />
+              </div>
+              <div>
+                <label className={labelCls}>Email</label>
+                <input className={inputCls} type="email" value={from.email} onChange={(e) => setFrom({ ...from, email: e.target.value })} placeholder="you@example.com" />
+              </div>
+              <div>
+                <label className={labelCls}>Phone</label>
+                <input className={inputCls} value={from.phone} onChange={(e) => setFrom({ ...from, phone: e.target.value })} placeholder="+1 555 000 0000" />
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Address</label>
+                <input className={inputCls} value={from.address} onChange={(e) => setFrom({ ...from, address: e.target.value })} placeholder="123 Main St, City, Country" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section B — Bill to */}
+          <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Bill to (client)</h2>
+            {clients.length > 0 && (
+              <div className="mb-3">
+                <label className={labelCls}>Select saved client</label>
+                <select className={inputCls} value={to.client_id} onChange={(e) => selectClient(e.target.value)}>
+                  <option value="">— type manually or select client —</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Client name</label>
+                <input className={inputCls} value={to.name} onChange={(e) => setTo({ ...to, name: e.target.value })} placeholder="John Smith" />
+              </div>
+              <div>
+                <label className={labelCls}>Company</label>
+                <input className={inputCls} value={to.company} onChange={(e) => setTo({ ...to, company: e.target.value })} placeholder="Acme Corp" />
+              </div>
+              <div>
+                <label className={labelCls}>Email</label>
+                <input className={inputCls} type="email" value={to.email} onChange={(e) => setTo({ ...to, email: e.target.value })} placeholder="client@example.com" />
+              </div>
+              <div>
+                <label className={labelCls}>Phone</label>
+                <input className={inputCls} value={to.phone} onChange={(e) => setTo({ ...to, phone: e.target.value })} placeholder="+1 555 000 0000" />
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Address</label>
+                <input className={inputCls} value={to.address} onChange={(e) => setTo({ ...to, address: e.target.value })} placeholder="456 Client Ave, City, Country" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section C — Invoice details */}
+          <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Invoice details</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Invoice number</label>
+                <input className={inputCls} value={details.invoice_number} onChange={(e) => setDetails({ ...details, invoice_number: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Currency</label>
+                <select className={inputCls} value={details.currency} onChange={(e) => setDetails({ ...details, currency: e.target.value })}>
+                  {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Issue date</label>
+                <input className={inputCls} type="date" value={details.issue_date} onChange={(e) => setDetails({ ...details, issue_date: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Due date</label>
+                <input className={inputCls} type="date" value={details.due_date} onChange={(e) => setDetails({ ...details, due_date: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>PO number (optional)</label>
+                <input className={inputCls} value={details.po_number} onChange={(e) => setDetails({ ...details, po_number: e.target.value })} placeholder="PO-12345" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section D — Line items */}
+          <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Line items</h2>
+            <div className="space-y-2">
+              {/* Header */}
+              <div className="grid grid-cols-12 gap-2 px-1">
+                <div className="col-span-5 text-xs font-medium text-slate-400">Description</div>
+                <div className="col-span-2 text-xs font-medium text-slate-400">Qty</div>
+                <div className="col-span-2 text-xs font-medium text-slate-400">Unit price</div>
+                <div className="col-span-2 text-xs font-medium text-slate-400">Tax %</div>
+                <div className="col-span-1" />
+              </div>
+
+              {items.map((item) => (
+                <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-5">
+                    <input
+                      className={inputCls}
+                      value={item.description}
+                      onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                      placeholder="Service or product description"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.unit_price}
+                      onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={item.tax_rate}
+                      onChange={(e) => updateItem(item.id, 'tax_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="col-span-1 flex justify-center">
+                    <button
+                      onClick={() => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+                      disabled={items.length === 1}
+                      className="text-slate-300 hover:text-red-400 transition-colors disabled:opacity-30"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                onClick={() => setItems((prev) => [...prev, newItem()])}
+                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium mt-2 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add line item
+              </button>
+            </div>
+
+            {/* Totals */}
+            <div className="mt-6 border-t border-slate-100 pt-4 space-y-2">
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>Subtotal</span>
+                <span>{fmt(subtotal)}</span>
+              </div>
+              {taxTotal > 0 && (
+                <div className="flex justify-between text-sm text-slate-600">
+                  <span>Tax</span>
+                  <span>{fmt(taxTotal)}</span>
+                </div>
+              )}
+              {/* Discount */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">Discount</span>
+                <select
+                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-600 focus:outline-none"
+                  value={discount.type}
+                  onChange={(e) => setDiscount({ ...discount, type: e.target.value as 'flat' | 'percent' })}
+                >
+                  <option value="flat">flat</option>
+                  <option value="percent">%</option>
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={discount.value || ''}
+                  onChange={(e) => setDiscount({ ...discount, value: parseFloat(e.target.value) || 0 })}
+                  placeholder="0"
+                  className="w-24 border border-slate-200 rounded-lg px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-600 ml-auto">{discountAmount > 0 ? `- ${fmt(discountAmount)}` : fmt(0)}</span>
+              </div>
+              <div className="flex justify-between text-base font-bold text-slate-900 border-t border-slate-200 pt-3 mt-2">
+                <span>Total</span>
+                <span className="text-blue-600">{fmt(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section E — Notes */}
+          <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Notes & payment info</h2>
+            <div className="space-y-3">
+              <div>
+                <label className={labelCls}>Notes</label>
+                <textarea className={inputCls + ' resize-none'} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Thank you for your business." />
+              </div>
+              <div>
+                <label className={labelCls}>Payment instructions</label>
+                <textarea className={inputCls + ' resize-none'} rows={3} value={paymentInfo} onChange={(e) => setPaymentInfo(e.target.value)} placeholder="Bank details, PayPal, etc." />
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom actions */}
+          <div className="flex gap-3 pb-8">
+            <button onClick={handleSaveDraft} disabled={saving} className="flex items-center gap-2 text-sm border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-medium hover:bg-slate-50 transition-colors disabled:opacity-50">
+              <Save className="w-4 h-4" /> Save draft
+            </button>
+            <button onClick={handleDownload} disabled={saving} className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 ml-auto">
+              <Download className="w-4 h-4" /> Save & view invoice
+            </button>
+          </div>
+        </div>
+
+        {/* ── LIVE PREVIEW ── */}
+        <div className={`w-[480px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto ${showPreview ? 'block' : 'hidden lg:block'}`}>
+          <div className="p-4 border-b border-slate-100 bg-slate-50">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Live preview · {template.name}</p>
+          </div>
+          <div className="p-6">
+            <InvoicePreview
+              from={from} to={to} details={details} items={items}
+              subtotal={subtotal} taxTotal={taxTotal} discountAmount={discountAmount} grandTotal={grandTotal}
+              notes={notes} paymentInfo={paymentInfo} fmt={fmt}
+              templateId={params.templateId}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── INLINE LIVE PREVIEW COMPONENT ────────────────────────────────────────────
+function InvoicePreview({ from, to, details, items, subtotal, taxTotal, discountAmount, grandTotal, notes, paymentInfo, fmt, templateId }: {
+  from: { name: string; email: string; phone: string; address: string; logo_url: string }
+  to: { name: string; company: string; email: string; phone: string; address: string }
+  details: { invoice_number: string; issue_date: string; due_date: string; currency: string; po_number: string }
+  items: LineItem[]
+  subtotal: number; taxTotal: number; discountAmount: number; grandTotal: number
+  notes: string; paymentInfo: string
+  fmt: (n: number) => string
+  templateId: string
+}) {
+  const accentColors: Record<string, string> = {
+    modern: '#2563eb', slate: '#1e293b', bold: '#1d4ed8', creative: '#4f46e5',
+    studio: '#0f172a', consulting: '#374151', agency: '#0284c7', retail: '#059669',
+    tech: '#18181b', professional: '#475569', clean: '#2563eb', classic: '#78350f',
+    soft: '#475569', compact: '#2563eb', elegant: '#64748b', 'stripe-style': '#635bff',
+    simple: '#374151', freelancer: '#c2410c', 'minimal-pro': '#1e293b',
+  }
+  const accent = accentColors[templateId] ?? '#2563eb'
+
+  return (
+    <div className="bg-white rounded-lg shadow-md overflow-hidden text-xs font-sans" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* Header */}
+      <div className="px-6 pt-6 pb-4" style={{ borderBottom: `3px solid ${accent}` }}>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-lg font-bold" style={{ color: accent }}>{from.name || 'Your Business'}</h1>
+            {from.email && <p className="text-slate-500 mt-0.5">{from.email}</p>}
+            {from.phone && <p className="text-slate-500">{from.phone}</p>}
+            {from.address && <p className="text-slate-500">{from.address}</p>}
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-slate-900">INVOICE</p>
+            <p className="font-semibold mt-1" style={{ color: accent }}>{details.invoice_number}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bill to + dates */}
+      <div className="px-6 py-4 grid grid-cols-2 gap-4 bg-slate-50">
+        <div>
+          <p className="font-semibold text-slate-500 uppercase tracking-wide text-[10px] mb-1">Bill to</p>
+          <p className="font-semibold text-slate-900">{to.name || '—'}</p>
+          {to.company && <p className="text-slate-600">{to.company}</p>}
+          {to.email && <p className="text-slate-500">{to.email}</p>}
+          {to.address && <p className="text-slate-500">{to.address}</p>}
+        </div>
+        <div className="text-right">
+          <p className="font-semibold text-slate-500 uppercase tracking-wide text-[10px] mb-1">Invoice details</p>
+          <p className="text-slate-700">Issued: <span className="font-medium">{details.issue_date}</span></p>
+          {details.due_date && <p className="text-slate-700">Due: <span className="font-medium">{details.due_date}</span></p>}
+          {details.po_number && <p className="text-slate-500">PO: {details.po_number}</p>}
+        </div>
+      </div>
+
+      {/* Line items */}
+      <div className="px-6 py-4">
+        <table className="w-full">
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${accent}20` }}>
+              <th className="text-left pb-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wide">Description</th>
+              <th className="text-right pb-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wide">Qty</th>
+              <th className="text-right pb-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wide">Price</th>
+              <th className="text-right pb-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wide">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.filter((i) => i.description || i.unit_price > 0).map((item) => (
+              <tr key={item.id} className="border-b border-slate-50">
+                <td className="py-2 text-slate-700">{item.description || '—'}</td>
+                <td className="py-2 text-right text-slate-600">{item.quantity}</td>
+                <td className="py-2 text-right text-slate-600">{fmt(item.unit_price)}</td>
+                <td className="py-2 text-right font-medium text-slate-900">{fmt(item.quantity * item.unit_price)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Totals */}
+        <div className="mt-4 ml-auto w-48 space-y-1">
+          <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+          {taxTotal > 0 && <div className="flex justify-between text-slate-600"><span>Tax</span><span>{fmt(taxTotal)}</span></div>}
+          {discountAmount > 0 && <div className="flex justify-between text-slate-600"><span>Discount</span><span>- {fmt(discountAmount)}</span></div>}
+          <div className="flex justify-between font-bold text-slate-900 border-t pt-1.5" style={{ borderColor: `${accent}40` }}>
+            <span>Total</span><span style={{ color: accent }}>{fmt(grandTotal)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Notes + payment */}
+      {(notes || paymentInfo) && (
+        <div className="px-6 pb-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+          {notes && <div><p className="font-semibold text-[10px] uppercase tracking-wide text-slate-400 mb-1">Notes</p><p className="text-slate-600">{notes}</p></div>}
+          {paymentInfo && <div><p className="font-semibold text-[10px] uppercase tracking-wide text-slate-400 mb-1">Payment</p><p className="text-slate-600 whitespace-pre-line">{paymentInfo}</p></div>}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="px-6 py-3 text-center text-[10px] text-slate-400" style={{ borderTop: `2px solid ${accent}20` }}>
+        Generated with ProInvoice · proinvoice.shop
+      </div>
     </div>
   )
 }
