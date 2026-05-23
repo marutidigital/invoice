@@ -538,16 +538,277 @@ export function LayoutBordered(p: InvoiceRenderProps) {
   )
 }
 
+
+// ─── LAYOUT 7: LEGAL (Formal document style — law firms, solicitors) ──────────
+export function LayoutLegal(p: InvoiceRenderProps) {
+  const { accent, customization: c } = p
+  const font = c.fontFamily !== 'Inter' ? `${c.fontFamily}, serif` : 'Georgia, "Times New Roman", serif'
+  const navy = '#0f2044'
+  const gold = accent
+
+  return (
+    <div className="relative overflow-hidden" style={{ backgroundColor: '#fefefe', color: '#1a1a1a', fontFamily: font }}>
+      <Watermark text={c.watermark} color={c.watermarkColor} />
+
+      {/* Top double border */}
+      <div style={{ height: '6px', backgroundColor: navy }} />
+      <div style={{ height: '2px', backgroundColor: gold }} />
+
+      {/* Header — law firm style */}
+      <div className="px-10 pt-7 pb-5">
+        <div className="flex justify-between items-start">
+          <div>
+            <Logo url={p.from.logo_url} size="h-10 max-w-[120px]" />
+            <p className="text-xl font-black mt-2 tracking-tight uppercase" style={{ color: navy }}>{p.from.name || 'Your Firm'}</p>
+            <p className="text-[10px] tracking-widest uppercase opacity-50 mt-0.5">Solicitors &amp; Legal Advisors</p>
+            <div className="text-xs mt-2 space-y-0.5 opacity-60">
+              {p.from.email && <p>{p.from.email}</p>}
+              {p.from.phone && <p>{p.from.phone}</p>}
+              {p.from.address && <p className="max-w-[180px] leading-snug">{p.from.address}</p>}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="inline-block border-2 px-4 py-2" style={{ borderColor: navy }}>
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: navy }}>Tax Invoice</p>
+              <p className="text-xl font-black mt-0.5" style={{ color: gold }}>{p.details.invoice_number}</p>
+            </div>
+            <div className="mt-3 text-xs space-y-0.5 opacity-60 text-right">
+              <p>Date of Issue: <span className="font-semibold">{p.details.issue_date}</span></p>
+              {p.details.due_date && <p>Payment Due: <span className="font-semibold">{p.details.due_date}</span></p>}
+              {p.details.po_number && <p>Matter Ref: {p.details.po_number}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="mx-10 border-t-2" style={{ borderColor: navy + '20' }} />
+
+      {/* Client section */}
+      <div className="px-10 py-5 grid grid-cols-2 gap-6 text-xs">
+        <div>
+          <p className="font-bold uppercase tracking-widest text-[9px] mb-2" style={{ color: navy }}>Client / Billed to</p>
+          <p className="font-bold text-sm">{p.to.name || '—'}</p>
+          {p.to.company && <p className="opacity-70">{p.to.company}</p>}
+          {p.to.email && <p className="opacity-60 mt-1">{p.to.email}</p>}
+          {p.to.address && <p className="opacity-60 mt-0.5 leading-snug">{p.to.address}</p>}
+        </div>
+        <div className="bg-slate-50 p-3 rounded text-xs space-y-1.5">
+          <p className="font-bold uppercase tracking-widest text-[9px] mb-1" style={{ color: navy }}>Invoice summary</p>
+          <div className="flex justify-between"><span className="opacity-50">Invoice No.</span><span className="font-semibold">{p.details.invoice_number}</span></div>
+          <div className="flex justify-between"><span className="opacity-50">Issue date</span><span>{p.details.issue_date}</span></div>
+          {p.details.due_date && <div className="flex justify-between"><span className="opacity-50">Due date</span><span className="font-semibold" style={{ color: gold }}>{p.details.due_date}</span></div>}
+          <div className="flex justify-between"><span className="opacity-50">Currency</span><span>{p.details.currency}</span></div>
+        </div>
+      </div>
+
+      {/* Services rendered */}
+      <div className="px-10 pb-5">
+        <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: navy }}>Services rendered</p>
+        <ItemsTable items={p.items} fmt={p.fmt} accent={gold} textColor="#1a1a1a" tableStyle={c.tableStyle} tableHeaderBg="#f1f5f9" tableStripeBg="#f8fafc" />
+        <div className="mt-4">
+          <TotalsBlock subtotal={p.subtotal} taxTotal={p.taxTotal} discountAmount={p.discountAmount} grandTotal={p.grandTotal} fmt={p.fmt} accent={gold} textColor="#1a1a1a" />
+        </div>
+      </div>
+
+      {/* Notes */}
+      {(p.notes || p.paymentInfo) && (
+        <div className="px-10 py-4 border-t" style={{ borderColor: navy + '15' }}>
+          <NotesRow notes={p.notes} paymentInfo={p.paymentInfo} accent={gold} textColor="#1a1a1a" />
+        </div>
+      )}
+      <SignatureLine show={c.showSignatureLine} color="#1a1a1a" />
+
+      {/* Legal footer */}
+      <div className="px-10 py-3 border-t text-[9px] opacity-40" style={{ borderColor: navy + '20' }}>
+        <div className="flex justify-between">
+          <span>This invoice is legally binding. Payment by due date is required.</span>
+          <span>{p.from.name}</span>
+        </div>
+      </div>
+
+      <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={gold} />
+      <div style={{ height: '6px', backgroundColor: navy }} />
+    </div>
+  )
+}
+
+// ─── LAYOUT 8: MEDICAL (Clinical, clean — doctors, clinics, labs) ─────────────
+export function LayoutMedical(p: InvoiceRenderProps) {
+  const { accent, customization: c } = p
+  const font = `${c.fontFamily !== 'Inter' ? c.fontFamily : 'Inter'}, sans-serif`
+  const blue = accent
+
+  return (
+    <div className="relative overflow-hidden" style={{ backgroundColor: '#f0f9ff', color: '#0c1a2e', fontFamily: font }}>
+      <Watermark text={c.watermark} color={c.watermarkColor} />
+
+      {/* Header */}
+      <div className="px-8 py-6 bg-white" style={{ borderBottom: `3px solid ${blue}` }}>
+        <div className="flex justify-between items-start">
+          <div className="flex items-start gap-4">
+            {/* Cross symbol */}
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-xl font-black shrink-0 mt-1" style={{ backgroundColor: blue }}>
+              ✚
+            </div>
+            <div>
+              <Logo url={p.from.logo_url} size="h-8 max-w-[100px]" />
+              <p className="font-black text-lg" style={{ color: blue }}>{p.from.name || 'Your Clinic'}</p>
+              <p className="text-[10px] uppercase tracking-widest opacity-40 mt-0.5">Healthcare &amp; Medical Services</p>
+              <div className="text-xs mt-1 opacity-60">
+                {p.from.email && <span className="mr-3">{p.from.email}</span>}
+                {p.from.phone && <span>{p.from.phone}</span>}
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="inline-block rounded-xl px-4 py-2 text-white" style={{ backgroundColor: blue }}>
+              <p className="text-xs font-bold uppercase tracking-wide">Receipt / Invoice</p>
+              <p className="text-lg font-black mt-0.5">{p.details.invoice_number}</p>
+            </div>
+            <div className="mt-2 text-xs space-y-0.5 opacity-60">
+              <p>Date: <span className="font-semibold">{p.details.issue_date}</span></p>
+              {p.details.due_date && <p>Due: <span className="font-semibold">{p.details.due_date}</span></p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Patient / client card */}
+      <div className="px-8 py-4 grid grid-cols-2 gap-4 text-xs">
+        <div className="bg-white rounded-xl p-4 border" style={{ borderColor: blue + '20' }}>
+          <p className="font-bold uppercase tracking-widest text-[9px] mb-2" style={{ color: blue }}>Patient / Client</p>
+          <p className="font-bold text-sm text-slate-900">{p.to.name || '—'}</p>
+          {p.to.company && <p className="opacity-60">{p.to.company}</p>}
+          {p.to.email && <p className="opacity-60 mt-0.5">{p.to.email}</p>}
+          {p.to.address && <p className="opacity-50 mt-0.5 leading-snug">{p.to.address}</p>}
+        </div>
+        <div className="bg-white rounded-xl p-4 border" style={{ borderColor: blue + '20' }}>
+          <p className="font-bold uppercase tracking-widest text-[9px] mb-2" style={{ color: blue }}>Invoice details</p>
+          <div className="space-y-1">
+            <div className="flex justify-between"><span className="opacity-50">Invoice#</span><span className="font-semibold">{p.details.invoice_number}</span></div>
+            <div className="flex justify-between"><span className="opacity-50">Issued</span><span>{p.details.issue_date}</span></div>
+            {p.details.due_date && <div className="flex justify-between"><span className="opacity-50">Due</span><span className="font-bold" style={{ color: blue }}>{p.details.due_date}</span></div>}
+          </div>
+        </div>
+      </div>
+
+      {/* Services */}
+      <div className="px-8 pb-4 bg-white mx-8 mb-4 rounded-xl border" style={{ borderColor: blue + '20' }}>
+        <p className="pt-4 pb-2 text-[9px] font-bold uppercase tracking-widest" style={{ color: blue }}>Medical services &amp; charges</p>
+        <ItemsTable items={p.items} fmt={p.fmt} accent={blue} textColor="#0c1a2e" tableStyle={c.tableStyle} tableHeaderBg="#f0f9ff" tableStripeBg="#e0f2fe" />
+        <div className="mt-4">
+          <TotalsBlock subtotal={p.subtotal} taxTotal={p.taxTotal} discountAmount={p.discountAmount} grandTotal={p.grandTotal} fmt={p.fmt} accent={blue} textColor="#0c1a2e" />
+        </div>
+      </div>
+
+      {/* Notes */}
+      {(p.notes || p.paymentInfo) && (
+        <div className="px-8 pb-4">
+          <NotesRow notes={p.notes} paymentInfo={p.paymentInfo} accent={blue} textColor="#0c1a2e" />
+        </div>
+      )}
+      <SignatureLine show={c.showSignatureLine} color="#0c1a2e" />
+      <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={blue} />
+      <div className="px-8 py-2 text-center text-[9px] opacity-40 bg-white border-t" style={{ borderColor: blue + '15' }}>
+        This is a computer-generated receipt. For any queries, contact us at {p.from.email || 'reception@clinic.com'}
+      </div>
+    </div>
+  )
+}
+
+// ─── LAYOUT 9: CONSTRUCTION (Bold industrial — builders, contractors, trades) ──
+export function LayoutConstruction(p: InvoiceRenderProps) {
+  const { accent, customization: c } = p
+  const font = `${c.fontFamily !== 'Inter' ? c.fontFamily : 'Inter'}, sans-serif`
+  const orange = accent
+  const dark = '#111827'
+
+  return (
+    <div className="relative overflow-hidden" style={{ backgroundColor: '#f9fafb', color: dark, fontFamily: font }}>
+      <Watermark text={c.watermark} color={c.watermarkColor} />
+
+      {/* Bold dark header */}
+      <div className="px-8 py-6" style={{ backgroundColor: dark }}>
+        <div className="flex justify-between items-center">
+          <div>
+            <Logo url={p.from.logo_url} size="h-10 max-w-[120px]" />
+            <p className="text-2xl font-black text-white mt-2 uppercase tracking-tight">{p.from.name || 'Your Company'}</p>
+            <div className="flex items-center gap-3 mt-1 text-xs text-white/50">
+              {p.from.email && <span>{p.from.email}</span>}
+              {p.from.phone && <span>· {p.from.phone}</span>}
+            </div>
+          </div>
+          {/* Orange diagonal badge */}
+          <div className="text-right">
+            <div className="inline-block px-5 py-3 skew-x-[-6deg]" style={{ backgroundColor: orange }}>
+              <p className="text-white font-black text-sm uppercase tracking-widest skew-x-[6deg]">INVOICE</p>
+              <p className="text-white font-black text-xl skew-x-[6deg]">{p.details.invoice_number}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Orange info band */}
+      <div className="px-8 py-3 grid grid-cols-4 gap-4 text-xs text-white" style={{ backgroundColor: orange }}>
+        <div><p className="opacity-70 uppercase tracking-wide text-[9px]">Billed to</p><p className="font-bold mt-0.5 truncate">{p.to.name || '—'}</p></div>
+        <div><p className="opacity-70 uppercase tracking-wide text-[9px]">Project / Ref</p><p className="font-bold mt-0.5">{p.details.po_number || '—'}</p></div>
+        <div><p className="opacity-70 uppercase tracking-wide text-[9px]">Issue date</p><p className="font-bold mt-0.5">{p.details.issue_date}</p></div>
+        <div><p className="opacity-70 uppercase tracking-wide text-[9px]">Due date</p><p className="font-black mt-0.5">{p.details.due_date || '—'}</p></div>
+      </div>
+
+      {/* Client details */}
+      {(p.to.address || p.to.email || p.to.company) && (
+        <div className="px-8 py-4 text-xs border-b" style={{ borderColor: orange + '30', backgroundColor: '#fff' }}>
+          <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: orange }}>Client details</p>
+          <div className="flex gap-8">
+            {p.to.company && <div><span className="opacity-50">Company: </span><span className="font-semibold">{p.to.company}</span></div>}
+            {p.to.email && <div><span className="opacity-50">Email: </span><span>{p.to.email}</span></div>}
+            {p.to.address && <div><span className="opacity-50">Address: </span><span>{p.to.address}</span></div>}
+          </div>
+        </div>
+      )}
+
+      {/* Items */}
+      <div className="px-8 py-5 bg-white">
+        <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: orange }}>Work / Materials breakdown</p>
+        <ItemsTable items={p.items} fmt={p.fmt} accent={orange} textColor={dark} tableStyle={c.tableStyle} tableHeaderBg="#fff7ed" tableStripeBg="#fff7ed" />
+        <div className="mt-5 border-t-2 pt-4" style={{ borderColor: orange }}>
+          <TotalsBlock subtotal={p.subtotal} taxTotal={p.taxTotal} discountAmount={p.discountAmount} grandTotal={p.grandTotal} fmt={p.fmt} accent={orange} textColor={dark} />
+        </div>
+      </div>
+
+      {/* Terms & notes */}
+      {(p.notes || p.paymentInfo) && (
+        <div className="px-8 py-4 bg-white border-t" style={{ borderColor: orange + '20' }}>
+          <NotesRow notes={p.notes} paymentInfo={p.paymentInfo} accent={orange} textColor={dark} />
+        </div>
+      )}
+      <SignatureLine show={c.showSignatureLine} color={dark} />
+
+      <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={orange} />
+
+      {/* Bottom bar */}
+      <div className="px-8 py-2 text-xs text-white flex justify-between" style={{ backgroundColor: dark }}>
+        <span className="opacity-50">Thank you for your business</span>
+        <span className="font-bold opacity-70">{p.from.name}</span>
+      </div>
+    </div>
+  )
+}
+
 // ─── Layout resolver ──────────────────────────────────────────────────────────
-// Maps headerStyle → layout component
 export function resolveLayout(headerStyle: string): (p: InvoiceRenderProps) => JSX.Element {
   switch (headerStyle) {
-    case 'bar':      return LayoutBar
-    case 'dark':     return LayoutDark
-    case 'sidebar':  return LayoutSidebar
-    case 'centered': return LayoutCentered
-    case 'bordered': return LayoutBordered
+    case 'bar':          return LayoutBar
+    case 'dark':         return LayoutDark
+    case 'sidebar':      return LayoutSidebar
+    case 'centered':     return LayoutCentered
+    case 'bordered':     return LayoutBordered
+    case 'legal':        return LayoutLegal
+    case 'medical':      return LayoutMedical
+    case 'construction': return LayoutConstruction
     case 'split':
-    default:         return LayoutSplit
+    default:             return LayoutSplit
   }
 }

@@ -1,13 +1,14 @@
-// lib/templates.ts — 25 invoice template definitions
+// lib/templates.ts — 35 invoice template definitions
 
 export interface TemplateDefinition {
   id: string
   name: string
-  category: 'minimal' | 'classic' | 'modern' | 'creative' | 'dark' | 'luxury'
+  category: 'minimal' | 'classic' | 'modern' | 'creative' | 'dark' | 'luxury' | 'professional'
   description: string
   color: string        // thumbnail bg
   accent: string       // accent color used in preview/render
-  headerStyle: 'bar' | 'split' | 'centered' | 'sidebar' | 'dark' | 'bordered'
+  headerStyle: 'bar' | 'split' | 'centered' | 'sidebar' | 'dark' | 'bordered' | 'legal' | 'medical' | 'construction'
+  industry?: string    // optional tag e.g. "Law", "Healthcare"
 }
 
 export const TEMPLATES: TemplateDefinition[] = [
@@ -43,13 +44,149 @@ export const TEMPLATES: TemplateDefinition[] = [
   { id: 'tech',         name: 'Tech',         category: 'dark',     description: 'Dark mode, code-inspired design',     color: 'bg-zinc-900',   accent: '#6366f1', headerStyle: 'dark' },
   { id: 'neon',         name: 'Neon',         category: 'dark',     description: 'Dark bg with vivid neon accents',     color: 'bg-gray-950',   accent: '#22d3ee', headerStyle: 'dark' },
   { id: 'midnight',     name: 'Midnight',     category: 'dark',     description: 'Deep navy, silver highlights',        color: 'bg-slate-950',  accent: '#818cf8', headerStyle: 'dark' },
+
+  // ── PROFESSIONAL / INDUSTRY ────────────────────────────────────────────────
+
+  // Law Firm
+  {
+    id: 'law-firm',
+    name: 'Law Firm',
+    category: 'professional',
+    description: 'Formal document style, navy & gold — solicitors, barristers, legal advisors',
+    color: 'bg-slate-900',
+    accent: '#b45309',
+    headerStyle: 'legal',
+    industry: 'Law & Legal',
+  },
+
+  // Medical / Clinic
+  {
+    id: 'medical',
+    name: 'Medical',
+    category: 'professional',
+    description: 'Clinical, clean blue-white — doctors, clinics, hospitals, labs, dentists',
+    color: 'bg-sky-50',
+    accent: '#0369a1',
+    headerStyle: 'medical',
+    industry: 'Healthcare',
+  },
+
+  // Construction
+  {
+    id: 'construction',
+    name: 'Construction',
+    category: 'professional',
+    description: 'Bold orange & black — builders, contractors, civil engineers, trades',
+    color: 'bg-orange-500',
+    accent: '#ea580c',
+    headerStyle: 'construction',
+    industry: 'Construction',
+  },
+
+  // Real Estate
+  {
+    id: 'real-estate',
+    name: 'Real Estate',
+    category: 'professional',
+    description: 'Warm gold & cream — property agents, landlords, developers',
+    color: 'bg-amber-800',
+    accent: '#92400e',
+    headerStyle: 'centered',
+    industry: 'Real Estate',
+  },
+
+  // IT / SaaS
+  {
+    id: 'it-saas',
+    name: 'IT / SaaS',
+    category: 'professional',
+    description: 'Electric indigo — software agencies, developers, MSPs, cloud services',
+    color: 'bg-violet-600',
+    accent: '#7c3aed',
+    headerStyle: 'bar',
+    industry: 'Technology',
+  },
+
+  // Accounting & Finance
+  {
+    id: 'accounting',
+    name: 'Accounting',
+    category: 'professional',
+    description: 'Forest green, numbers-first layout — accountants, CPAs, bookkeepers',
+    color: 'bg-emerald-800',
+    accent: '#166534',
+    headerStyle: 'split',
+    industry: 'Finance',
+  },
+
+  // Photography
+  {
+    id: 'photography',
+    name: 'Photography',
+    category: 'professional',
+    description: 'Dramatic black with amber — photographers, videographers, studios',
+    color: 'bg-zinc-950',
+    accent: '#f59e0b',
+    headerStyle: 'dark',
+    industry: 'Photography',
+  },
+
+  // Hospitality & Hotel
+  {
+    id: 'hospitality',
+    name: 'Hospitality',
+    category: 'professional',
+    description: 'Warm burgundy & cream — hotels, restaurants, catering, events',
+    color: 'bg-rose-900',
+    accent: '#9f1239',
+    headerStyle: 'centered',
+    industry: 'Hospitality',
+  },
+
+  // Education / Coaching
+  {
+    id: 'education',
+    name: 'Education',
+    category: 'professional',
+    description: 'Friendly teal & white — tutors, coaches, training institutes, schools',
+    color: 'bg-cyan-600',
+    accent: '#0891b2',
+    headerStyle: 'bar',
+    industry: 'Education',
+  },
+
+  // Manufacturing & Supply
+  {
+    id: 'manufacturing',
+    name: 'Manufacturing',
+    category: 'professional',
+    description: 'Industrial steel blue — factories, suppliers, logistics, wholesale',
+    color: 'bg-blue-900',
+    accent: '#1e40af',
+    headerStyle: 'construction',
+    industry: 'Manufacturing',
+  },
 ]
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  minimal:  'bg-slate-100 text-slate-600',
-  classic:  'bg-amber-50 text-amber-700',
-  modern:   'bg-blue-50 text-blue-700',
-  creative: 'bg-purple-50 text-purple-700',
-  dark:     'bg-zinc-800 text-zinc-300',
-  luxury:   'bg-yellow-50 text-yellow-700',
+  minimal:      'bg-slate-100 text-slate-600',
+  classic:      'bg-amber-50 text-amber-700',
+  modern:       'bg-blue-50 text-blue-700',
+  creative:     'bg-purple-50 text-purple-700',
+  dark:         'bg-zinc-800 text-zinc-300',
+  luxury:       'bg-yellow-50 text-yellow-700',
+  professional: 'bg-green-50 text-green-700',
+}
+
+export const INDUSTRY_ICONS: Record<string, string> = {
+  'Law & Legal':    '⚖️',
+  'Healthcare':     '🏥',
+  'Construction':   '🏗️',
+  'Real Estate':    '🏠',
+  'Technology':     '💻',
+  'Finance':        '📊',
+  'Photography':    '📸',
+  'Hospitality':    '🏨',
+  'Education':      '🎓',
+  'Manufacturing':  '🏭',
 }
