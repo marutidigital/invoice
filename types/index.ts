@@ -20,6 +20,7 @@ export interface Profile {
   payment_info?: string;
   default_notes?: string;
   invoice_prefix?: string;
+  invoice_counter?: number;
   created_at?: string;
   updated_at?: string;
 }
