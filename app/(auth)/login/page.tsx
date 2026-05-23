@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { FileText, Mail, Chrome, Loader2, ArrowRight } from 'lucide-react'
+import { FileText, Mail, Loader2, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function LoginPage() {

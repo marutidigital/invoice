@@ -32,7 +32,7 @@ export default function SettingsForm({ profile, userId, userEmail }: SettingsFor
     tax_rate: profile?.tax_rate?.toString() ?? '0',
     payment_info: profile?.payment_info ?? '',
     default_notes: profile?.default_notes ?? '',
-    invoice_prefix: (profile as any)?.invoice_prefix ?? 'INV',
+    invoice_prefix: profile?.invoice_prefix ?? 'INV',
   })
 
   const set = (field: string, value: string) =>

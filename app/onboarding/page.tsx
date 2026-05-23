@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { FileText, Loader2, Upload } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { COUNTRIES } from '@/lib/countries'
 import { CURRENCIES } from '@/lib/currencies'
