@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Plus, FileText, TrendingUp, Clock, AlertCircle } from 'lucide-react'
+import DashboardActions from '@/components/dashboard/DashboardActions'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -21,7 +22,7 @@ export default async function DashboardPage() {
 
   const { data: invoices } = await supabase
     .from('invoices')
-    .select('id, invoice_number, status, total, issue_date, due_date, to_name, to_company, currency')
+    .select('id, invoice_number, status, total, issue_date, due_date, to_name, to_company, currency, template_id')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
     .limit(20)
@@ -144,6 +145,7 @@ export default async function DashboardPage() {
                 <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wide px-3 py-3">Amount</th>
                 <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wide px-3 py-3">Date</th>
                 <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wide px-3 py-3">Status</th>
+                <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wide px-6 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -174,6 +176,13 @@ export default async function DashboardPage() {
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[inv.status] ?? statusColors.draft}`}>
                       {inv.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <DashboardActions
+                      invoiceId={inv.id}
+                      invoiceNumber={inv.invoice_number}
+                      templateId={inv.template_id ?? 'clean'}
+                    />
                   </td>
                 </tr>
               ))}

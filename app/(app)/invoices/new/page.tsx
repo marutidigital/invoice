@@ -270,7 +270,7 @@ export default function TemplatePicker() {
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Choose a template</h1>
-        <p className="text-slate-500 text-sm mt-1">25 designs across 6 styles. Pick one that fits your brand — you can change anytime.</p>
+        <p className="text-slate-500 text-sm mt-1">35 professionally designed templates across 7 styles. Pick one that fits your brand — you can change anytime.</p>
       </div>
 
       <div className="space-y-10">

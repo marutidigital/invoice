@@ -77,7 +77,7 @@ export default function LandingPage() {
                 step: '01',
                 icon: <FileText className="w-6 h-6 text-blue-600" />,
                 title: 'Pick a template',
-                desc: 'Choose from 20 professionally designed invoice templates.',
+                desc: 'Choose from 35 professionally designed invoice templates.',
               },
               {
                 step: '02',

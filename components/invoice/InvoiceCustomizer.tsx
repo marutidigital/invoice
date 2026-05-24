@@ -553,7 +553,7 @@ export default function InvoiceCustomizer({ open, onClose, value, onChange, user
             onClick={onClose}
             className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all"
           >
-            Apply &amp; Close
+            Apply & Close
           </button>
         </div>
       </div>

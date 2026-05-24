@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { TEMPLATES } from '@/lib/templates'
 import { CURRENCIES } from '@/lib/currencies'
@@ -33,6 +33,12 @@ const blankItem = (): LineItem => ({
 
 export default function InvoiceFormPage({ params }: { params: { templateId: string } }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editInvoiceId = searchParams.get('edit') // existing invoice ID when editing
+  const duplicateInvoiceId = searchParams.get('duplicate') // existing invoice ID when duplicating
+  const isEditMode = !!editInvoiceId
+  const isDuplicateMode = !!duplicateInvoiceId
+
   const supabase = createClient()
   const template = TEMPLATES.find((t) => t.id === params.templateId) ?? TEMPLATES[0]
 
@@ -40,10 +46,11 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   const [clients, setClients] = useState<Client[]>([])
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const [invoiceId, setInvoiceId] = useState<string | null>(null)
+  const [invoiceId, setInvoiceId] = useState<string | null>(isEditMode ? editInvoiceId : null)
   const [userId, setUserId] = useState<string>('')
   const [showCustomizer, setShowCustomizer] = useState(false)
   const [customization, setCustomization] = useState<InvoiceCustomization>(DEFAULT_CUSTOMIZATION)
+  const [loading, setLoading] = useState(isEditMode || isDuplicateMode) // show loading state when editing or duplicating
 
   const [from, setFrom] = useState({ name: '', email: '', phone: '', address: '', logo_url: '' })
   const [to, setTo] = useState({ client_id: '', name: '', company: '', email: '', phone: '', address: '' })
@@ -59,7 +66,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   const [notes, setNotes] = useState('')
   const [paymentInfo, setPaymentInfo] = useState('')
 
-  // Load profile + clients on mount
+  // Load profile + clients + (if editing/duplicating) existing invoice data
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -69,24 +76,99 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
       const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (p) {
         setProfile(p)
-        setFrom({
-          name: p.business_name ?? '',
-          email: p.email ?? '',
-          phone: p.phone ?? '',
-          address: [p.address, p.city, p.state, p.postcode, p.country].filter(Boolean).join(', '),
-          logo_url: p.logo_url ?? '',
-        })
-        setDetails((d) => ({
-          ...d,
-          currency: p.currency ?? 'USD',
-          invoice_number: `${p.invoice_prefix ?? 'INV'}-${String((p.invoice_counter ?? 0) + 1).padStart(3, '0')}`,
-        }))
-        setNotes(p.default_notes ?? '')
-        setPaymentInfo(p.payment_info ?? '')
       }
 
       const { data: c } = await supabase.from('clients').select('*').eq('user_id', user.id).order('name')
       setClients(c ?? [])
+
+      // ── EDIT or DUPLICATE MODE: Load existing invoice ───────────────────────
+      const targetInvoiceId = editInvoiceId || duplicateInvoiceId
+      if (targetInvoiceId) {
+        const { data: inv } = await supabase
+          .from('invoices')
+          .select('*, invoice_items(*)')
+          .eq('id', targetInvoiceId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (inv) {
+          setFrom({
+            name: inv.from_name ?? '',
+            email: inv.from_email ?? '',
+            phone: inv.from_phone ?? '',
+            address: inv.from_address ?? '',
+            logo_url: inv.from_logo_url ?? '',
+          })
+          setTo({
+            client_id: inv.client_id ?? '',
+            name: inv.to_name ?? '',
+            company: inv.to_company ?? '',
+            email: inv.to_email ?? '',
+            phone: inv.to_phone ?? '',
+            address: inv.to_address ?? '',
+          })
+          
+          if (duplicateInvoiceId) {
+            // For duplication: generate a new number and dates
+            const newNum = `${p?.invoice_prefix ?? 'INV'}-${String((p?.invoice_counter ?? 0) + 1).padStart(3, '0')}`
+            setDetails({
+              invoice_number: newNum,
+              issue_date: new Date().toISOString().split('T')[0],
+              due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+              currency: inv.currency ?? 'USD',
+              po_number: inv.po_number ?? '',
+            })
+          } else {
+            // Edit mode: keep original number and dates
+            setDetails({
+              invoice_number: inv.invoice_number ?? 'INV-001',
+              issue_date: inv.issue_date ?? new Date().toISOString().split('T')[0],
+              due_date: inv.due_date ?? '',
+              currency: inv.currency ?? 'USD',
+              po_number: inv.po_number ?? '',
+            })
+          }
+
+          // Load line items
+          const loadedItems: LineItem[] = (inv.invoice_items ?? []).map(
+            (item: { id: string; description: string; quantity: number; unit_price: number; tax_rate: number; total: number }) => ({
+              id: item.id,
+              description: item.description,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              tax_rate: item.tax_rate,
+              total: item.total,
+            })
+          )
+          setItems(loadedItems.length > 0 ? loadedItems : [blankItem()])
+          setNotes(inv.notes ?? '')
+          setPaymentInfo(inv.payment_info ?? '')
+
+          // Restore discount if any
+          if (inv.discount_amount > 0) {
+            setDiscount({ type: 'flat', value: inv.discount_amount })
+          }
+        }
+        setLoading(false)
+      } else {
+        // New invoice — populate from profile
+        if (p) {
+          setFrom({
+            name: p.business_name ?? '',
+            email: p.email ?? '',
+            phone: p.phone ?? '',
+            address: [p.address, p.city, p.state, p.postcode, p.country].filter(Boolean).join(', '),
+            logo_url: p.logo_url ?? '',
+          })
+          setDetails((d) => ({
+            ...d,
+            currency: p.currency ?? 'USD',
+            invoice_number: `${p.invoice_prefix ?? 'INV'}-${String((p.invoice_counter ?? 0) + 1).padStart(3, '0')}`,
+          }))
+          setNotes(p.default_notes ?? '')
+          setPaymentInfo(p.payment_info ?? '')
+        }
+      }
     }
     load()
   }, [])
@@ -155,13 +237,15 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
 
     let id = invoiceId
     if (id) {
+      // Update existing invoice
       await supabase.from('invoices').update(payload).eq('id', id)
     } else {
+      // Create new invoice
       const { data } = await supabase.from('invoices').insert(payload).select('id').single()
       id = data?.id ?? null
       if (id) {
         setInvoiceId(id)
-        // Increment invoice counter
+        // Increment invoice counter only for new invoices
         await supabase
           .from('profiles')
           .update({ invoice_counter: (profile?.invoice_counter ?? 0) + 1 })
@@ -190,19 +274,30 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
 
   const handleSaveDraft = async () => {
     const id = await save('draft')
-    if (id) toast.success('Draft saved!')
+    if (id) toast.success(isEditMode ? 'Invoice updated!' : 'Draft saved!')
   }
 
   const handleSaveAndView = async () => {
     const id = await save('draft')
     if (id) {
-      toast.success('Invoice saved!')
+      toast.success(isEditMode ? 'Invoice updated!' : 'Invoice saved!')
       router.push(`/invoices/${id}`)
     }
   }
 
   const ic = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all'
   const lc = 'block text-xs font-medium text-slate-500 mb-1'
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-slate-500">Loading invoice…</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -213,7 +308,9 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <span className="font-semibold text-slate-900 text-sm">New Invoice</span>
+            <span className="font-semibold text-slate-900 text-sm">
+              {isEditMode ? 'Edit Invoice' : 'New Invoice'}
+            </span>
             <span className="text-slate-400 text-xs ml-2">· {template.name}</span>
           </div>
         </div>
@@ -233,11 +330,11 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
           </button>
           <button onClick={handleSaveDraft} disabled={saving} className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors">
             <Save className="w-4 h-4" />
-            {saving ? 'Saving…' : 'Save draft'}
+            {saving ? 'Saving…' : isEditMode ? 'Update draft' : 'Save draft'}
           </button>
           <button onClick={handleSaveAndView} disabled={saving} className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-medium transition-all disabled:opacity-50">
             <Download className="w-4 h-4" />
-            Save &amp; view
+            {isEditMode ? 'Update & view' : 'Save & view'}
           </button>
         </div>
       </div>
@@ -377,7 +474,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
 
           {/* NOTES */}
           <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Notes &amp; payment</h2>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Notes & payment</h2>
             <div className="space-y-3">
               <div><label className={lc}>Notes</label><textarea className={ic + ' resize-none'} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Thank you for your business." /></div>
               <div><label className={lc}>Payment instructions</label><textarea className={ic + ' resize-none'} rows={3} value={paymentInfo} onChange={(e) => setPaymentInfo(e.target.value)} placeholder="Bank details, PayPal, etc." /></div>
@@ -386,10 +483,10 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
 
           <div className="flex gap-3 pb-8">
             <button onClick={handleSaveDraft} disabled={saving} className="flex items-center gap-2 text-sm border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-medium hover:bg-slate-50 transition-colors disabled:opacity-50">
-              <Save className="w-4 h-4" /> Save draft
+              <Save className="w-4 h-4" /> {isEditMode ? 'Update draft' : 'Save draft'}
             </button>
             <button onClick={handleSaveAndView} disabled={saving} className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 ml-auto">
-              <Download className="w-4 h-4" /> Save &amp; view invoice
+              <Download className="w-4 h-4" /> {isEditMode ? 'Update & view invoice' : 'Save & view invoice'}
             </button>
           </div>
         </div>

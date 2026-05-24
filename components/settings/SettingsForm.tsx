@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { COUNTRIES } from '@/lib/countries'
 import { CURRENCIES } from '@/lib/currencies'
 import type { Profile } from '@/types'
+import LogoUpload from '@/components/ui/LogoUpload'
 
 interface SettingsFormProps {
   profile: Profile | null
@@ -33,6 +34,7 @@ export default function SettingsForm({ profile, userId, userEmail }: SettingsFor
     payment_info: profile?.payment_info ?? '',
     default_notes: profile?.default_notes ?? '',
     invoice_prefix: profile?.invoice_prefix ?? 'INV',
+    logo_url: profile?.logo_url ?? '',
   })
 
   const set = (field: string, value: string) =>
@@ -47,6 +49,7 @@ export default function SettingsForm({ profile, userId, userEmail }: SettingsFor
       email: userEmail,
       ...form,
       tax_rate: parseFloat(form.tax_rate) || 0,
+      logo_url: form.logo_url || null,
     })
 
     if (error) {
@@ -104,6 +107,13 @@ export default function SettingsForm({ profile, userId, userEmail }: SettingsFor
                 ))}
               </select>
             </div>
+          </div>
+          <div className="sm:col-span-2 mt-2">
+            <LogoUpload
+              currentUrl={form.logo_url}
+              userId={userId}
+              onUpload={(url) => set('logo_url', url)}
+            />
           </div>
         </div>
 
