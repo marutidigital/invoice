@@ -131,7 +131,7 @@ export default function OnboardingPage() {
         <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200">
           <FileText className="w-5 h-5 text-white" />
         </div>
-        <span className="font-bold text-slate-900 text-xl">ProInvoice</span>
+        <span className="font-bold text-slate-900 text-xl">FastInvoice</span>
       </div>
 
       <div className="max-w-2xl mx-auto">

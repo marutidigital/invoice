@@ -11,7 +11,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <FileText className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-slate-900 text-lg">ProInvoice</span>
+            <span className="font-semibold text-slate-900 text-lg">FastInvoice</span>
           </div>
           <div className="flex items-center gap-4">
             <Link
@@ -171,12 +171,12 @@ export default function LandingPage() {
             <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
               <FileText className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-semibold text-slate-900">ProInvoice</span>
+            <span className="font-semibold text-slate-900">FastInvoice</span>
             <span className="text-slate-400 text-sm">· Free forever</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy policy</Link>
-            <a href="https://proinvoice.shop" className="hover:text-slate-900 transition-colors">proinvoice.shop</a>
+            <a href="https://fastinvoice.shop" className="hover:text-slate-900 transition-colors">fastinvoice.shop</a>
           </div>
         </div>
       </footer>

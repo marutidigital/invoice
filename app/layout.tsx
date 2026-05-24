@@ -11,18 +11,18 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'ProInvoice — Free Invoice Generator',
-    template: '%s | ProInvoice',
+    default: 'FastInvoice — Free Invoice Generator',
+    template: '%s | FastInvoice',
   },
   description:
     'Create professional invoices in minutes. Free forever. No watermarks, no limits, no credit card required.',
   keywords: ['invoice generator', 'free invoice', 'invoice maker', 'PDF invoice', 'online invoice'],
   openGraph: {
-    title: 'ProInvoice — Free Invoice Generator',
+    title: 'FastInvoice — Free Invoice Generator',
     description:
       'Create professional invoices in minutes. Free forever. No watermarks, no limits.',
     url: process.env.NEXT_PUBLIC_APP_URL,
-    siteName: 'ProInvoice',
+    siteName: 'FastInvoice',
     type: 'website',
   },
 }

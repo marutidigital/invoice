@@ -94,7 +94,7 @@ export default function LoginPage() {
         <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200">
           <FileText className="w-5 h-5 text-white" />
         </div>
-        <span className="font-bold text-slate-900 text-xl">ProInvoice</span>
+        <span className="font-bold text-slate-900 text-xl">FastInvoice</span>
       </div>
 
       <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-100/50 p-8">
@@ -122,7 +122,7 @@ export default function LoginPage() {
         {mode === 'signin' && !magicSent && (
           <>
             <h1 className="text-xl font-bold text-slate-900 mb-1">Welcome back</h1>
-            <p className="text-slate-500 text-sm mb-6">Sign in to your ProInvoice account</p>
+            <p className="text-slate-500 text-sm mb-6">Sign in to your FastInvoice account</p>
 
             {/* Google */}
             <button

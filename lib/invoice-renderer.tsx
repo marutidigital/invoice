@@ -223,7 +223,7 @@ export function LayoutSplit(p: InvoiceRenderProps) {
 
       <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={accent} />
       {!c.footerText && !c.footerImageUrl && (
-        <p className="text-center text-[9px] py-3 opacity-30" style={{ borderTop: `1px solid ${accent}15` }}>Generated with ProInvoice · proinvoice.shop</p>
+        <p className="text-center text-[9px] py-3 opacity-30" style={{ borderTop: `1px solid ${accent}15` }}>Generated with FastInvoice · fastinvoice.shop</p>
       )}
     </div>
   )
@@ -278,7 +278,7 @@ export function LayoutBar(p: InvoiceRenderProps) {
       <SignatureLine show={c.showSignatureLine} color={c.textColor} />
       <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={accent} />
       {!c.footerText && !c.footerImageUrl && (
-        <p className="text-center text-[9px] py-3 opacity-30">Generated with ProInvoice · proinvoice.shop</p>
+        <p className="text-center text-[9px] py-3 opacity-30">Generated with FastInvoice · fastinvoice.shop</p>
       )}
     </div>
   )
@@ -349,7 +349,7 @@ export function LayoutDark(p: InvoiceRenderProps) {
       <SignatureLine show={c.showSignatureLine} color={c.textColor} />
       <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={accent} />
       {!c.footerText && !c.footerImageUrl && (
-        <p className="text-center text-[9px] py-3 opacity-30">Generated with ProInvoice · proinvoice.shop</p>
+        <p className="text-center text-[9px] py-3 opacity-30">Generated with FastInvoice · fastinvoice.shop</p>
       )}
     </div>
   )
@@ -474,7 +474,7 @@ export function LayoutCentered(p: InvoiceRenderProps) {
       <SignatureLine show={c.showSignatureLine} color={c.textColor} />
       <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={accent} />
       {!c.footerText && !c.footerImageUrl && (
-        <p className="text-center text-[9px] py-3 opacity-30 border-t" style={{ borderColor: accent + '10' }}>Generated with ProInvoice · proinvoice.shop</p>
+        <p className="text-center text-[9px] py-3 opacity-30 border-t" style={{ borderColor: accent + '10' }}>Generated with FastInvoice · fastinvoice.shop</p>
       )}
     </div>
   )
@@ -532,7 +532,7 @@ export function LayoutBordered(p: InvoiceRenderProps) {
 
       <FooterSection text={c.footerText} imageUrl={c.footerImageUrl} bg={c.footerBg} accent={accent} />
       {!c.footerText && !c.footerImageUrl && (
-        <p className="text-center text-[9px] py-3 opacity-30 border-t" style={{ borderColor: accent + '10' }}>Generated with ProInvoice · proinvoice.shop</p>
+        <p className="text-center text-[9px] py-3 opacity-30 border-t" style={{ borderColor: accent + '10' }}>Generated with FastInvoice · fastinvoice.shop</p>
       )}
     </div>
   )
