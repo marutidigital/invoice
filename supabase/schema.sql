@@ -6,22 +6,17 @@
 -- ============================================================
 -- CLEAN SLATE: drop everything first (safe — no real data yet)
 -- ============================================================
-
-drop trigger if exists set_updated_at on invoice_items;
-drop trigger if exists set_updated_at on invoices;
-drop trigger if exists set_updated_at on clients;
-drop trigger if exists set_updated_at on profiles;
-drop trigger if exists set_updated_at on businesses;
-drop trigger if exists on_auth_user_created on auth.users;
-
-drop function if exists update_updated_at() cascade;
-drop function if exists handle_new_user() cascade;
-
+-- Drop tables first (cascade automatically drops triggers on them)
 drop table if exists invoice_items cascade;
 drop table if exists invoices cascade;
 drop table if exists clients cascade;
 drop table if exists profiles cascade;
 drop table if exists businesses cascade;
+
+-- Drop trigger on auth.users and helper functions
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists update_updated_at() cascade;
+drop function if exists handle_new_user() cascade;
 
 -- ============================================================
 -- TABLES
