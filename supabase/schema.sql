@@ -6,6 +6,8 @@
 -- ============================================================
 -- CLEAN SLATE: drop everything first (safe — no real data yet)
 -- ============================================================
+SET search_path TO public, auth;
+
 -- Drop tables first (cascade automatically drops triggers on them)
 drop table if exists invoice_items cascade;
 drop table if exists invoices cascade;
