@@ -2,11 +2,12 @@
 
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue';
 
-export interface Profile {
+export interface Business {
   id: string;
-  business_name: string;
+  user_id: string;
+  name: string;
   contact_name?: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: string;
   city?: string;
@@ -19,8 +20,16 @@ export interface Profile {
   tax_rate?: number;
   payment_info?: string;
   default_notes?: string;
-  invoice_prefix?: string;
-  invoice_counter?: number;
+  invoice_prefix: string;
+  invoice_counter: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Profile {
+  id: string;
+  email: string;
+  active_business_id?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -28,6 +37,7 @@ export interface Profile {
 export interface Client {
   id: string;
   user_id: string;
+  business_id: string;
   name: string;
   email?: string;
   phone?: string;
@@ -52,9 +62,12 @@ export interface InvoiceItem {
 export interface Invoice {
   id: string;
   user_id: string;
+  business_id: string;
   client_id?: string;
   invoice_number: string;
-  status: InvoiceStatus;
+  status: string; // can be invoice status or estimate status
+  type: 'invoice' | 'estimate';
+  parent_id?: string;
   issue_date: string;
   due_date?: string;
   currency: string;

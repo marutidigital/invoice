@@ -35,10 +35,24 @@ export default function NewClientPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
+    // Fetch active business
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('active_business_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!prof?.active_business_id) {
+      toast.error('No active business profile found')
+      setSaving(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('clients')
       .insert({
         user_id: user.id,
+        business_id: prof.active_business_id,
         name: form.name.trim(),
         company: form.company.trim() || null,
         email: form.email.trim() || null,

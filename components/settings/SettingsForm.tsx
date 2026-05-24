@@ -6,35 +6,35 @@ import { Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { COUNTRIES } from '@/lib/countries'
 import { CURRENCIES } from '@/lib/currencies'
-import type { Profile } from '@/types'
+import type { Business } from '@/types'
 import LogoUpload from '@/components/ui/LogoUpload'
 
 interface SettingsFormProps {
-  profile: Profile | null
+  business: Business | null
   userId: string
   userEmail: string
 }
 
-export default function SettingsForm({ profile, userId, userEmail }: SettingsFormProps) {
+export default function SettingsForm({ business, userId, userEmail }: SettingsFormProps) {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
 
   const [form, setForm] = useState({
-    business_name: profile?.business_name ?? '',
-    contact_name: profile?.contact_name ?? '',
-    phone: profile?.phone ?? '',
-    address: profile?.address ?? '',
-    city: profile?.city ?? '',
-    state: profile?.state ?? '',
-    postcode: profile?.postcode ?? '',
-    country: profile?.country ?? 'US',
-    currency: profile?.currency ?? 'USD',
-    tax_label: profile?.tax_label ?? 'Tax',
-    tax_rate: profile?.tax_rate?.toString() ?? '0',
-    payment_info: profile?.payment_info ?? '',
-    default_notes: profile?.default_notes ?? '',
-    invoice_prefix: profile?.invoice_prefix ?? 'INV',
-    logo_url: profile?.logo_url ?? '',
+    business_name: business?.name ?? '',
+    contact_name: business?.contact_name ?? '',
+    phone: business?.phone ?? '',
+    address: business?.address ?? '',
+    city: business?.city ?? '',
+    state: business?.state ?? '',
+    postcode: business?.postcode ?? '',
+    country: business?.country ?? 'US',
+    currency: business?.currency ?? 'USD',
+    tax_label: business?.tax_label ?? 'Tax',
+    tax_rate: business?.tax_rate?.toString() ?? '0',
+    payment_info: business?.payment_info ?? '',
+    default_notes: business?.default_notes ?? '',
+    invoice_prefix: business?.invoice_prefix ?? 'INV',
+    logo_url: business?.logo_url ?? '',
   })
 
   const set = (field: string, value: string) =>
@@ -42,15 +42,32 @@ export default function SettingsForm({ profile, userId, userEmail }: SettingsFor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!business?.id) {
+      toast.error('No active business to update')
+      return
+    }
     setLoading(true)
 
-    const { error } = await supabase.from('profiles').upsert({
-      id: userId,
-      email: userEmail,
-      ...form,
-      tax_rate: parseFloat(form.tax_rate) || 0,
-      logo_url: form.logo_url || null,
-    })
+    const { error } = await supabase
+      .from('businesses')
+      .update({
+        name: form.business_name.trim(),
+        contact_name: form.contact_name || null,
+        phone: form.phone || null,
+        address: form.address || null,
+        city: form.city || null,
+        state: form.state || null,
+        postcode: form.postcode || null,
+        country: form.country,
+        currency: form.currency,
+        tax_label: form.tax_label || 'Tax',
+        tax_rate: parseFloat(form.tax_rate) || 0,
+        payment_info: form.payment_info || null,
+        default_notes: form.default_notes || null,
+        invoice_prefix: form.invoice_prefix || 'INV',
+        logo_url: form.logo_url || null,
+      })
+      .eq('id', business.id)
 
     if (error) {
       toast.error(error.message)

@@ -14,15 +14,26 @@ export default async function AppLayout({
 
   if (!user) redirect('/login')
 
-  // Check if onboarding is needed
-  // Only redirect to onboarding if business_name is empty/missing
+  // Check if onboarding is needed (no active business profile or business name is empty)
   const { data: profile } = await supabase
     .from('profiles')
-    .select('business_name')
+    .select('active_business_id')
     .eq('id', user.id)
     .single()
 
-  const needsOnboarding = !profile?.business_name || profile.business_name.trim() === ''
+  let needsOnboarding = true
+
+  if (profile?.active_business_id) {
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('name')
+      .eq('id', profile.active_business_id)
+      .single()
+
+    if (business?.name && business.name.trim() !== '') {
+      needsOnboarding = false
+    }
+  }
 
   if (needsOnboarding) redirect('/onboarding')
 

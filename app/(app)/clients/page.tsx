@@ -8,10 +8,17 @@ export default async function ClientsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Fetch active business from profiles
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('active_business_id')
+    .eq('id', user!.id)
+    .single()
+
   const { data: clients } = await supabase
     .from('clients')
     .select('*')
-    .eq('user_id', user!.id)
+    .eq('business_id', profile?.active_business_id)
     .order('name', { ascending: true })
 
   return (

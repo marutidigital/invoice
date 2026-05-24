@@ -11,19 +11,22 @@ interface DashboardActionsProps {
   invoiceId: string
   invoiceNumber: string
   templateId: string
+  isEstimate?: boolean
 }
 
-export default function DashboardActions({ invoiceId, invoiceNumber, templateId }: DashboardActionsProps) {
+export default function DashboardActions({ invoiceId, invoiceNumber, templateId, isEstimate = false }: DashboardActionsProps) {
   const router = useRouter()
   const supabase = createClient()
   const [deleting, setDeleting] = useState(false)
 
   const handleDuplicate = () => {
-    router.push(`/invoices/new/${templateId ?? 'clean'}?duplicate=${invoiceId}`)
+    const basePath = isEstimate ? '/estimates/new' : '/invoices/new'
+    router.push(`${basePath}/${templateId ?? 'clean'}?duplicate=${invoiceId}`)
   }
 
   const handleDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete invoice ${invoiceNumber}?`)) {
+    const label = isEstimate ? 'estimate' : 'invoice'
+    if (!window.confirm(`Are you sure you want to delete ${label} ${invoiceNumber}?`)) {
       return
     }
     setDeleting(true)
@@ -37,17 +40,22 @@ export default function DashboardActions({ invoiceId, invoiceNumber, templateId 
       toast.error(error.message)
       setDeleting(false)
     } else {
-      toast.success('Invoice deleted')
+      toast.success(`${label === 'estimate' ? 'Estimate' : 'Invoice'} deleted`)
       router.refresh()
     }
   }
+
+  const viewPath = isEstimate ? `/estimates/${invoiceId}` : `/invoices/${invoiceId}`
+  const editPath = isEstimate 
+    ? `/estimates/new/${templateId ?? 'clean'}?edit=${invoiceId}` 
+    : `/invoices/new/${templateId ?? 'clean'}?edit=${invoiceId}`
 
   return (
     <div className="flex items-center justify-end gap-1.5">
       {/* View */}
       <Link
-        href={`/invoices/${invoiceId}`}
-        title="View Invoice"
+        href={viewPath}
+        title={isEstimate ? "View Estimate" : "View Invoice"}
         className="flex items-center justify-center p-1.5 text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
       >
         <Eye className="w-3.5 h-3.5" />
@@ -55,8 +63,8 @@ export default function DashboardActions({ invoiceId, invoiceNumber, templateId 
 
       {/* Edit */}
       <Link
-        href={`/invoices/new/${templateId ?? 'clean'}?edit=${invoiceId}`}
-        title="Edit Invoice"
+        href={editPath}
+        title={isEstimate ? "Edit Estimate" : "Edit Invoice"}
         className="flex items-center justify-center p-1.5 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
       >
         <Edit className="w-3.5 h-3.5" />
@@ -65,7 +73,7 @@ export default function DashboardActions({ invoiceId, invoiceNumber, templateId 
       {/* Duplicate */}
       <button
         onClick={handleDuplicate}
-        title="Duplicate Invoice"
+        title={isEstimate ? "Duplicate Estimate" : "Duplicate Invoice"}
         className="flex items-center justify-center p-1.5 text-emerald-600 hover:text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
       >
         <Copy className="w-3.5 h-3.5" />
@@ -75,7 +83,7 @@ export default function DashboardActions({ invoiceId, invoiceNumber, templateId 
       <button
         onClick={handleDelete}
         disabled={deleting}
-        title="Delete Invoice"
+        title={isEstimate ? "Delete Estimate" : "Delete Invoice"}
         className="flex items-center justify-center p-1.5 text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
       >
         {deleting ? (

@@ -40,15 +40,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
-  // Also create profile row
-  await supabase.from('profiles').upsert({
-    id: data.user.id,
-    email: data.user.email!,
-    business_name: email.split('@')[0],
-    country: 'US',
-    currency: 'USD',
-  })
-
   return NextResponse.json({
     success: true,
     message: `✅ User created! You can now sign in at /login with: ${email}`,

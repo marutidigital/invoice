@@ -49,10 +49,18 @@ export default function OnboardingPage() {
       return
     }
 
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      email: user.email!,
-      business_name: form.business_name.trim(),
+    // Fetch current profile to see if there is an active business ID
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('active_business_id')
+      .eq('id', user.id)
+      .single()
+
+    let activeBusinessId = profile?.active_business_id
+    let dbError = null
+
+    const businessData = {
+      name: form.business_name.trim(),
       contact_name: form.contact_name || null,
       phone: form.phone || null,
       address: form.address || null,
@@ -65,14 +73,49 @@ export default function OnboardingPage() {
       tax_rate: parseFloat(form.tax_rate) || 0,
       payment_info: form.payment_info || null,
       default_notes: form.default_notes || null,
-    })
+    }
 
-    if (error) {
-      toast.error(error.message)
+    if (activeBusinessId) {
+      // Update existing default business
+      const { error } = await supabase
+        .from('businesses')
+        .update(businessData)
+        .eq('id', activeBusinessId)
+      dbError = error
+    } else {
+      // Create new business row
+      const { data: newBiz, error } = await supabase
+        .from('businesses')
+        .insert({
+          user_id: user.id,
+          ...businessData
+        })
+        .select()
+        .single()
+
+      if (!error && newBiz) {
+        activeBusinessId = newBiz.id
+        // Link to profile
+        const { error: linkError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email: user.email!,
+            active_business_id: newBiz.id,
+          })
+        dbError = linkError
+      } else {
+        dbError = error
+      }
+    }
+
+    if (dbError) {
+      toast.error(dbError.message)
       setLoading(false)
     } else {
-      toast.success('Profile saved! Welcome aboard 🎉')
+      toast.success('Business settings saved! Welcome aboard 🎉')
       router.push('/dashboard')
+      router.refresh()
     }
   }
 

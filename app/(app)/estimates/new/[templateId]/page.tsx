@@ -8,7 +8,7 @@ import { TEMPLATES } from '@/lib/templates'
 import { CURRENCIES } from '@/lib/currencies'
 import { Plus, Trash2, Download, Save, ArrowLeft, Eye, EyeOff, Settings2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import type { Profile, Client, Business } from '@/types'
+import type { Client, Business } from '@/types'
 import LogoUpload from '@/components/ui/LogoUpload'
 import InvoiceCustomizer, { type InvoiceCustomization, DEFAULT_CUSTOMIZATION } from '@/components/invoice/InvoiceCustomizer'
 import { resolveLayout } from '@/lib/invoice-renderer'
@@ -31,13 +31,13 @@ const blankItem = (): LineItem => ({
   total: 0,
 })
 
-export default function InvoiceFormPage({ params }: { params: { templateId: string } }) {
+export default function EstimateFormPage({ params }: { params: { templateId: string } }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const editInvoiceId = searchParams.get('edit') // existing invoice ID when editing
-  const duplicateInvoiceId = searchParams.get('duplicate') // existing invoice ID when duplicating
-  const isEditMode = !!editInvoiceId
-  const isDuplicateMode = !!duplicateInvoiceId
+  const editEstimateId = searchParams.get('edit')
+  const duplicateEstimateId = searchParams.get('duplicate')
+  const isEditMode = !!editEstimateId
+  const isDuplicateMode = !!duplicateEstimateId
 
   const supabase = createClient()
   const template = TEMPLATES.find((t) => t.id === params.templateId) ?? TEMPLATES[0]
@@ -46,16 +46,16 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   const [clients, setClients] = useState<Client[]>([])
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const [invoiceId, setInvoiceId] = useState<string | null>(isEditMode ? editInvoiceId : null)
+  const [estimateId, setEstimateId] = useState<string | null>(isEditMode ? editEstimateId : null)
   const [userId, setUserId] = useState<string>('')
   const [showCustomizer, setShowCustomizer] = useState(false)
   const [customization, setCustomization] = useState<InvoiceCustomization>(DEFAULT_CUSTOMIZATION)
-  const [loading, setLoading] = useState(isEditMode || isDuplicateMode) // show loading state when editing or duplicating
+  const [loading, setLoading] = useState(isEditMode || isDuplicateMode)
 
   const [from, setFrom] = useState({ name: '', email: '', phone: '', address: '', logo_url: '' })
   const [to, setTo] = useState({ client_id: '', name: '', company: '', email: '', phone: '', address: '' })
   const [details, setDetails] = useState({
-    invoice_number: 'INV-001',
+    invoice_number: 'EST-001',
     issue_date: new Date().toISOString().split('T')[0],
     due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
     currency: 'USD',
@@ -66,7 +66,6 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   const [notes, setNotes] = useState('')
   const [paymentInfo, setPaymentInfo] = useState('')
 
-  // Load profile + clients + (if editing/duplicating) existing invoice data
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -99,29 +98,13 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
         .order('name')
       setClients(c ?? [])
 
-      // Auto-fill client if ?client=id search param exists
-      const urlClientId = searchParams.get('client')
-      if (urlClientId && c) {
-        const found = c.find((cl) => cl.id === urlClientId)
-        if (found) {
-          setTo({
-            client_id: found.id,
-            name: found.name,
-            company: found.company ?? '',
-            email: found.email ?? '',
-            phone: found.phone ?? '',
-            address: found.address ?? '',
-          })
-        }
-      }
-
-      // ── EDIT or DUPLICATE MODE: Load existing invoice ───────────────────────
-      const targetInvoiceId = editInvoiceId || duplicateInvoiceId
-      if (targetInvoiceId) {
+      // ── EDIT or DUPLICATE MODE: Load existing estimate ───────────────────────
+      const targetEstimateId = editEstimateId || duplicateEstimateId
+      if (targetEstimateId) {
         const { data: inv } = await supabase
           .from('invoices')
           .select('*, invoice_items(*)')
-          .eq('id', targetInvoiceId)
+          .eq('id', targetEstimateId)
           .eq('user_id', user.id)
           .single()
 
@@ -142,9 +125,9 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
             address: inv.to_address ?? '',
           })
           
-          if (duplicateInvoiceId) {
+          if (duplicateEstimateId) {
             // For duplication: generate a new number and dates
-            const newNum = `${biz?.invoice_prefix ?? 'INV'}-${String((biz?.invoice_counter ?? 0) + 1).padStart(3, '0')}`
+            const newNum = `EST-${String((biz?.invoice_counter ?? 0) + 1).padStart(3, '0')}`
             setDetails({
               invoice_number: newNum,
               issue_date: new Date().toISOString().split('T')[0],
@@ -155,7 +138,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
           } else {
             // Edit mode: keep original number and dates
             setDetails({
-              invoice_number: inv.invoice_number ?? 'INV-001',
+              invoice_number: inv.invoice_number ?? 'EST-001',
               issue_date: inv.issue_date ?? new Date().toISOString().split('T')[0],
               due_date: inv.due_date ?? '',
               currency: inv.currency ?? 'USD',
@@ -185,7 +168,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
         }
         setLoading(false)
       } else {
-        // New invoice — populate from active business
+        // New estimate — populate from active business
         if (biz) {
           setFrom({
             name: biz.name ?? '',
@@ -197,7 +180,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
           setDetails((d) => ({
             ...d,
             currency: biz.currency ?? 'USD',
-            invoice_number: `${biz.invoice_prefix ?? 'INV'}-${String((biz.invoice_counter ?? 0) + 1).padStart(3, '0')}`,
+            invoice_number: `EST-${String((biz.invoice_counter ?? 0) + 1).padStart(3, '0')}`,
           }))
           setNotes(biz.default_notes ?? '')
           setPaymentInfo(biz.payment_info ?? '')
@@ -207,7 +190,6 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
     load()
   }, [])
 
-  // Client autofill
   const selectClient = (clientId: string) => {
     const client = clients.find((c) => c.id === clientId)
     if (!client) {
@@ -224,7 +206,6 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
     })
   }
 
-  // Update line item + recalculate
   const updateItem = (id: string, field: keyof LineItem, value: string | number) => {
     setItems((prev) =>
       prev.map((item) => {
@@ -236,7 +217,6 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
     )
   }
 
-  // Totals
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
   const taxTotal = items.reduce((s, i) => s + i.quantity * i.unit_price * (i.tax_rate / 100), 0)
   const discountAmount = discount.type === 'flat' ? discount.value : (subtotal * discount.value) / 100
@@ -245,8 +225,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: details.currency }).format(n)
 
-  // Save to Supabase
-  const save = useCallback(async (status: 'draft' | 'sent' = 'draft') => {
+  const save = useCallback(async (status: 'draft' | 'sent' | 'accepted' | 'declined' = 'draft') => {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return null }
@@ -257,7 +236,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
       client_id: to.client_id || null,
       invoice_number: details.invoice_number,
       status,
-      type: 'invoice',
+      type: 'estimate',
       issue_date: details.issue_date,
       due_date: details.due_date || null,
       currency: details.currency,
@@ -271,17 +250,17 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
       template_id: params.templateId,
     }
 
-    let id = invoiceId
+    let id = estimateId
     if (id) {
-      // Update existing invoice
+      // Update existing estimate
       await supabase.from('invoices').update(payload).eq('id', id)
     } else {
-      // Create new invoice
+      // Create new estimate
       const { data } = await supabase.from('invoices').insert(payload).select('id').single()
       id = data?.id ?? null
       if (id && activeBiz) {
-        setInvoiceId(id)
-        // Increment invoice counter only for new invoices
+        setEstimateId(id)
+        // Increment invoice counter (common for quotes and billing)
         await supabase
           .from('businesses')
           .update({ invoice_counter: (activeBiz.invoice_counter ?? 0) + 1 })
@@ -306,18 +285,18 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
 
     setSaving(false)
     return id
-  }, [from, to, details, items, discount, notes, paymentInfo, subtotal, taxTotal, discountAmount, grandTotal, invoiceId, activeBiz, params.templateId])
+  }, [from, to, details, items, discount, notes, paymentInfo, subtotal, taxTotal, discountAmount, grandTotal, estimateId, activeBiz, params.templateId])
 
   const handleSaveDraft = async () => {
     const id = await save('draft')
-    if (id) toast.success(isEditMode ? 'Invoice updated!' : 'Draft saved!')
+    if (id) toast.success(isEditMode ? 'Estimate updated!' : 'Draft saved!')
   }
 
   const handleSaveAndView = async () => {
     const id = await save('draft')
     if (id) {
-      toast.success(isEditMode ? 'Invoice updated!' : 'Invoice saved!')
-      router.push(`/invoices/${id}`)
+      toast.success(isEditMode ? 'Estimate updated!' : 'Estimate saved!')
+      router.push(`/estimates/${id}`)
     }
   }
 
@@ -329,7 +308,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Loading invoice…</p>
+          <p className="text-sm text-slate-500">Loading estimate…</p>
         </div>
       </div>
     )
@@ -345,7 +324,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
           </button>
           <div>
             <span className="font-semibold text-slate-900 text-sm">
-              {isEditMode ? 'Edit Invoice' : 'New Invoice'}
+              {isEditMode ? 'Edit Estimate' : 'New Estimate'}
             </span>
             <span className="text-slate-400 text-xs ml-2">· {template.name}</span>
           </div>
@@ -436,9 +415,9 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
 
           {/* DETAILS */}
           <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Invoice details</h2>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Estimate details</h2>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={lc}>Invoice number</label><input className={ic} value={details.invoice_number} onChange={(e) => setDetails({ ...details, invoice_number: e.target.value })} /></div>
+              <div><label className={lc}>Estimate number</label><input className={ic} value={details.invoice_number} onChange={(e) => setDetails({ ...details, invoice_number: e.target.value })} /></div>
               <div>
                 <label className={lc}>Currency</label>
                 <select className={ic} value={details.currency} onChange={(e) => setDetails({ ...details, currency: e.target.value })}>
@@ -446,7 +425,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
                 </select>
               </div>
               <div><label className={lc}>Issue date</label><input className={ic} type="date" value={details.issue_date} onChange={(e) => setDetails({ ...details, issue_date: e.target.value })} /></div>
-              <div><label className={lc}>Due date</label><input className={ic} type="date" value={details.due_date} onChange={(e) => setDetails({ ...details, due_date: e.target.value })} /></div>
+              <div><label className={lc}>Valid until (due date)</label><input className={ic} type="date" value={details.due_date} onChange={(e) => setDetails({ ...details, due_date: e.target.value })} /></div>
               <div><label className={lc}>PO number (optional)</label><input className={ic} value={details.po_number} onChange={(e) => setDetails({ ...details, po_number: e.target.value })} placeholder="PO-12345" /></div>
             </div>
           </div>
@@ -522,7 +501,7 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
               <Save className="w-4 h-4" /> {isEditMode ? 'Update draft' : 'Save draft'}
             </button>
             <button onClick={handleSaveAndView} disabled={saving} className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 ml-auto">
-              <Download className="w-4 h-4" /> {isEditMode ? 'Update & view invoice' : 'Save & view invoice'}
+              <Download className="w-4 h-4" /> {isEditMode ? 'Update & view' : 'Save & view'}
             </button>
           </div>
         </div>
@@ -550,7 +529,6 @@ export default function InvoiceFormPage({ params }: { params: { templateId: stri
   )
 }
 
-// LIVE PREVIEW COMPONENT
 type PreviewProps = {
   from: { name: string; email: string; phone: string; address: string; logo_url: string }
   to: { name: string; company: string; email: string; phone: string; address: string }
@@ -565,17 +543,10 @@ type PreviewProps = {
 
 function InvoicePreview(p: PreviewProps) {
   const { templateId, customization } = p
-
-  // Get template definition for headerStyle + default accent
   const templateDef = TEMPLATES.find((t) => t.id === templateId)
   const headerStyle = templateDef?.headerStyle ?? 'split'
   const defaultAccent = templateDef?.accent ?? '#2563eb'
-
-  // User's custom accent overrides template default (unless still at default blue)
-  const accent = customization.accentColor !== '#2563eb'
-    ? customization.accentColor
-    : defaultAccent
-
+  const accent = customization.accentColor !== '#2563eb' ? customization.accentColor : defaultAccent
   const Layout = resolveLayout(headerStyle)
 
   return (

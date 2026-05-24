@@ -6,16 +6,19 @@ import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
   FileText,
+  FileSpreadsheet,
   Users,
   Settings,
   LogOut,
   ChevronRight,
 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
+import BusinessSwitcher from './BusinessSwitcher'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/invoices/new', label: 'New Invoice', icon: FileText },
+  { href: '/estimates', label: 'Estimates', icon: FileSpreadsheet },
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
@@ -33,15 +36,8 @@ export default function Sidebar({ user }: { user: User }) {
 
   return (
     <aside className="w-60 bg-white border-r border-slate-100 flex flex-col shrink-0">
-      {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm shadow-blue-200">
-            <FileText className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-slate-900">ProInvoice</span>
-        </div>
-      </div>
+      {/* Business Switcher replacing standard Logo header */}
+      <BusinessSwitcher userId={user.id} />
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-0.5">
