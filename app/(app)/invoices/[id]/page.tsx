@@ -67,7 +67,6 @@ export default async function InvoiceViewPage({ params }: { params: { id: string
     grandTotal: invoice.total ?? 0,
     notes: invoice.notes ?? '',
     paymentInfo: invoice.payment_info ?? '',
-    fmt,
     accent,
     templateId: invoice.template_id ?? 'clean',
   }

@@ -16,7 +16,6 @@ interface InvoiceViewRendererProps {
     grandTotal: number
     notes: string
     paymentInfo: string
-    fmt: (n: number) => string
     accent: string
     templateId: string
   }
@@ -27,6 +26,11 @@ export default function InvoiceViewRenderer({ invoiceData }: InvoiceViewRenderer
   const headerStyle = templateDef?.headerStyle ?? 'split'
 
   const Layout = resolveLayout(headerStyle)
+
+  // Generate formatting function inside client component to avoid server serialization issues
+  const currency = invoiceData.details.currency ?? 'USD'
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n)
 
   // Use default customization with the template's accent colour
   const customization = {
@@ -46,7 +50,7 @@ export default function InvoiceViewRenderer({ invoiceData }: InvoiceViewRenderer
       grandTotal={invoiceData.grandTotal}
       notes={invoiceData.notes}
       paymentInfo={invoiceData.paymentInfo}
-      fmt={invoiceData.fmt}
+      fmt={fmt}
       accent={invoiceData.accent}
       customization={customization}
     />

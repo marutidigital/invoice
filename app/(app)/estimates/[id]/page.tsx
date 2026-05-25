@@ -68,7 +68,6 @@ export default async function EstimateViewPage({ params }: { params: { id: strin
     grandTotal: estimate.total ?? 0,
     notes: estimate.notes ?? '',
     paymentInfo: estimate.payment_info ?? '',
-    fmt,
     accent,
     templateId: estimate.template_id ?? 'clean',
   }
